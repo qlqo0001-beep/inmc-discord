@@ -1,0 +1,75 @@
+# 채팅 사용자 자리표시 — 채팅에 이 글을 치면 아래 text 로 바뀝니다(InteractiveChat 의 CustomPlaceholders).
+#
+# pattern       정규식. (?i) = 대소문자 무시. 괄호로 잡은 것은 $1 $2 로 씁니다
+# name          탭 완성·목록에 보일 이름
+# parse-player  sender = 보낸 사람 기준으로 %...% 를 채움 · viewer = 보는 사람마다 따로
+# text          바뀔 글 (비우면 원래 글 그대로 두고 호버·클릭만 붙임)
+# hover         마우스를 올리면 보일 줄들
+# click-action  SUGGEST_COMMAND(입력창에 넣기) · RUN_COMMAND · OPEN_URL · COPY_TO_CLIPBOARD (빈칸이면 없음)
+# permission    이 권한이 있어야 바뀜 (빈칸이면 누구나)
+
+money:
+  pattern: "(?i)\\[money\\]|\\[m\\]"
+  name: "[money]"
+  description: "&e내 잔고를 채팅에 보입니다"
+  parse-player: sender
+  text: "[%player_name% 님의 잔고]"
+  hover: ["&6%player_name% 님의 잔고: %vault_eco_balance_commas%"]
+  click-action: SUGGEST_COMMAND
+  click-value: "/pay %player_name% "
+  permission: ""
+
+gametime:
+  pattern: "(?i)\\[gametime\\]"
+  name: "[gametime]"
+  description: "&e지금 있는 월드의 시각을 보입니다"
+  parse-player: sender
+  text: "%player_world_time_24%"
+  hover: []
+  click-action: ""
+  click-value: ""
+  permission: ""
+
+match:
+  pattern: "(?i)\\[match: *([^\\[\\]]*)\\]"
+  name: "[match:<글>]"
+  description: "&e정규식으로 잡은 글을 쓰는 예시"
+  parse-player: viewer
+  text: "&b[&e$1&b]"
+  hover: ["&b$1"]
+  click-action: RUN_COMMAND
+  click-value: "/me $1"
+  permission: ""
+
+time:
+  pattern: "(?i)\\[time\\]"
+  name: "[time]"
+  description: "&e서버의 실제 시각을 보입니다"
+  parse-player: sender
+  text: "%server_time_yyyy-MM-dd HH:mm:ss%"
+  hover: []
+  click-action: ""
+  click-value: ""
+  permission: ""
+
+pos:
+  pattern: "(?i)\\[pos\\]"
+  name: "[pos]"
+  description: "&e내 위치를 보입니다"
+  parse-player: sender
+  text: "&b월드: &f%player_world% &eX:&f%player_x% &eY:&f%player_y% &eZ:&f%player_z%"
+  hover: []
+  click-action: ""
+  click-value: ""
+  permission: ""
+
+ping:
+  pattern: "(?i)\\[ping\\]"
+  name: "[ping]"
+  description: "&e내 핑을 보입니다"
+  parse-player: sender
+  text: "%player_colored_ping% &bms"
+  hover: []
+  click-action: ""
+  click-value: ""
+  permission: ""

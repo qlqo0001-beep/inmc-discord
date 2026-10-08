@@ -1,0 +1,302 @@
+# inmc-디스코드 설정
+#
+# DiscordSRV 와 InteractiveChat 을 대신합니다. 처음 켤 때 plugins/DiscordSRV 와 plugins/InteractiveChat 이
+# 남아 있으면 그 설정·연결 계정을 이 파일로 옮겨 옵니다(맨 아래 migrated-from 이 적혀 있으면 이미 옮긴 것).
+#
+# 형식 안의 %이름% 은 이 플러그인이 채우는 값이고, 나머지 %...% 는 PlaceholderAPI 가 채웁니다.
+# 색은 &a · &#rrggbb · <green> 을 다 씁니다.
+
+bot:
+  # 디스코드 개발자 포털의 봇 토큰. 이 파일 밖으로 나가지 않습니다(로그에도 안 찍습니다).
+  token: ""
+  # 봇의 "하는 중" 상태. 빈칸이면 없음.
+  status: "inmc.kr"
+
+channels:
+  # 채팅을 주고받는 채널 id
+  chat: ""
+  # 콘솔 로그를 보내고 명령어를 받는 채널 id (빈칸이면 끔)
+  console: ""
+
+# /디스코드 를 치면 보여 줄 초대 링크
+invite-link: ""
+
+# 날짜 표기(%date%). 시간대는 Asia/Seoul 같은 이름.
+time:
+  format: "EEE, d. MMM yyyy HH:mm:ss z"
+  zone: "Asia/Seoul"
+
+# ── 채팅 중계 ────────────────────────────────────────────────────────────────
+chat:
+  to-discord: true
+  to-game: true
+  # 게임 → 디스코드. %message% · %username% · %displayname% + PlaceholderAPI
+  discord-format: "%cmi_user_prefix% | %titleforge_title_display% %titleforge_nickname% %cmi_user_suffix%&r: %message%"
+  # 디스코드 → 게임. %name%(디스코드 이름) · %toprole% · %toprolecolor% · %allroles% · %message% · %reply%
+  game-format: "[&b디코 &r| %toprolecolor%%toprole%&r] %name%: %message%%reply%"
+  # 역할이 하나도 없는 사람
+  game-format-no-role: "[&b디코&r] %name%: %message%%reply%"
+  # 답장이면 %reply% 자리에 붙는 것
+  reply-format: " (답장 %name%)"
+  all-roles-separator: " | "
+  # 역할 이름 바꿔 보이기 / 안 보일 역할
+  role-aliases:
+    Developer: Dev
+  hidden-roles: []
+  # 디스코드 → 게임 메시지 길이 제한(글자)
+  truncate: 256
+  # 게임에서 친 @이름 을 디스코드 멘션으로 바꾸기, 바꿔도 되는 종류(user · role · channel · emoji · everyone · here)
+  translate-mentions: true
+  allowed-mentions: [user, channel, emoji]
+  # 이 역할이 있는 사람은 디스코드에서 친 &색 코드가 게임에서 색으로 보입니다
+  color-roles: [Developer, Owner, Admin, 어드민]
+  block-webhooks: true
+  block-bots: false
+  # 디스코드 메시지를 서버 콘솔에도 찍기
+  to-console: true
+  # 정규식(pattern) → 바꿀 글(replace). 빈 글로 바뀌면 그 메시지를 버립니다.
+  # (목록 모양인 까닭: YAML 열쇠에 점이 들어가면 경로로 쪼개진다)
+  game-filters: []
+  discord-filters:
+    - pattern: "@(everyone|here)"
+      replace: "$1"
+  # 웹훅 전달 — 게임 채팅을 메시지마다 그 플레이어의 이름·얼굴로 보낸다(봇에게 채팅 채널 "웹후크 관리" 권한 필요).
+  # 끄면 봇 이름으로 discord-format 그대로.
+  webhook:
+    enabled: false
+    # 메시지 위에 보이는 이름. %displayname% %username% + PlaceholderAPI
+    username-format: "%displayname%"
+    # 본문. %message% + PlaceholderAPI
+    message-format: "%message%"
+    # 얼굴 그림 주소. {skin}(지금 스킨의 해시, 없으면 uuid) {texture}(스킨 해시, 없으면 빈칸) {username} {uuid} {uuid-nodashes} {size}
+    # {skin} 을 쓰면 CMI 로 바꾼 스킨도 따라갑니다. 주소가 그림을 주지 않으면 디스코드는 기본 로고를 보입니다.
+    avatar-url: "https://mc-heads.net/avatar/{skin}/{size}"
+    avatar-size: 128
+    # 이미 있는 웹훅 주소(디스코드 채널 설정 → 연동 → 웹후크). 비우면 봇이 채팅 채널에 하나 만들어 씁니다.
+    # 주소의 웹훅이 가리키는 채널로 갑니다. 남이 만든 웹훅일 수 있어 [inv] 의 "칸 고르기" 메뉴는 붙지 않습니다. 비밀값 — 남에게 보이지 마세요.
+    url: ""
+
+# ── 콘솔 채널 ────────────────────────────────────────────────────────────────
+console:
+  levels: [info, warn, error]
+  # 정규식(pattern) → 바꿀 글(replace). 빈 글이 되면 그 줄을 보내지 않습니다.
+  filters:
+    - pattern: ".*(?i)async chat thread.*"
+      replace: ""
+  refresh-seconds: 5
+  code-blocks: true
+  # {date} {level} {name}(로거 이름)
+  prefix: "[{date} {level}{name}] "
+  timestamp: "EEE HH:mm:ss"
+  # 디스코드에서 친 명령어 기록(plugins/inmc-discord/logs/). %date% = 날짜. 빈칸이면 안 남김
+  usage-log: "Console-%date%.log"
+  # 콘솔 채널에서 칠 수 없는 명령어
+  blocked-commands: ["?", "op", "deop", "execute"]
+  block-bots: false
+
+# 채팅 채널에서 "!c 명령어" 로 콘솔 명령 실행
+console-command:
+  enabled: true
+  prefix: "!c"
+  roles: [어드민, Owner]
+  whitelist: [say, lag, tps]
+  # 이 역할은 whitelist 밖의 명령어도 됩니다
+  bypass-roles: [어드민, Developer]
+  notify-errors: true
+
+# 채팅 채널에 이 글을 치면 접속자 목록을 답합니다
+list-command:
+  enabled: true
+  trigger: "접속목록"
+  # 답과 요청을 몇 초 뒤 지울지 (0 = 안 지움)
+  delete-after: 10
+
+# 채널 주제. 디스코드가 10분에 두 번까지만 허락해서 10분보다 짧게 잡을 수 없습니다. 빈칸이면 안 바꿈
+# %playercount% %playermax% %totalplayers% %uptimemins% %date% %tps% %usedmemorygb% %freememorygb% %maxmemorygb% %serverversion%
+topic:
+  interval-minutes: 10
+  # 주제가 그대로면 보내지 않는다 — %date% 처럼 매번 달라지는 토큰을 넣으면 주기마다 바꾼다(디스코드 한도: 채널마다 10분에 2번).
+  chat: "%playercount%/%playermax% 플레이어 온라인 | 총 접속자 %totalplayers% 명 | 서버 업타임 %uptimemins% 분"
+  console: "TPS: %tps% | Mem: %usedmemorygb%GB 사용중/%freememorygb%GB 사용가능/%maxmemorygb%GB 최대 할당 가능| %serverversion%"
+  chat-shutdown: "서버 오프라인 | 총 접속자 %totalplayers% 명"
+  console-shutdown: "서버 오프라인 | %serverversion%"
+
+# 채팅 채널에 보내는 시작·종료 알림 (빈칸이면 안 보냄)
+lifecycle:
+  startup: ":white_check_mark: **서버가 시작되었습니다**"
+  shutdown: ":octagonal_sign: **서버가 종료되었습니다.**"
+
+# 접속·처음 접속·퇴장·사망을 채팅 채널에 임베드로(색 띠 + 얼굴 + 한 줄). text 가 빈칸이면 안 보냄.
+# %displayname% %username% %world% · %message% = 게임 안의 접속·퇴장·사망 문구 · %deathmessage% = 사망 문구 · PAPI 도 됨(그 플레이어 기준)
+# 얼굴은 chat.webhook.avatar-url 을 씁니다. 숨은(vanish) 플레이어는 보내지 않습니다.
+player-events:
+  join:
+    text: "%displayname% 님이 서버에 접속하셨습니다."
+    color: "#00ff00"
+  first-join:
+    text: "%displayname% 님이 처음으로 서버에 접속하셨습니다!"
+    color: "#ffd700"
+  leave:
+    text: "%displayname% 님이 서버에서 나가셨습니다."
+    color: "#ff0000"
+  death:
+    text: "%deathmessage%"
+    color: "#000000"
+
+# 서버가 멈추면 채팅 채널에 알림. %date% %guildowner%(서버 주인 멘션) %seconds%
+watchdog:
+  enabled: true
+  timeout-seconds: 30
+  message-count: 3
+  message: "`%date%` %guildowner%, 서버실이 :fire: 타고 있습니다! :bangbang:"
+  recovered: "`%date%` 서버가 다시 움직입니다 (멈춤 %seconds%초)"
+
+# ── 계정 연결 ────────────────────────────────────────────────────────────────
+link:
+  # 연결하면 줄 디스코드 역할 이름 (빈칸이면 안 줌)
+  role: "Linked"
+  # 이미 연결된 디스코드 계정이 새 코드로 다른 마인크래프트 계정에 다시 연결할 수 있는지
+  allow-relink: false
+  # 코드가 살아 있는 시간(분)
+  code-minutes: 10
+  # 연결·해제할 때 콘솔에서 실행 ({player} {uuid} {discord})
+  linked-commands: []
+  unlinked-commands: []
+  # 연결한 사람의 디스코드 서버 별명을 게임 닉네임(타이틀포지 닉네임, 없으면 마크 이름)으로 맞춥니다 —
+  # 연결할 때 · 접속하고 5초 뒤 · 게임 닉네임을 바꿀 때. 연결을 끊어도 별명은 그대로 둡니다.
+  # 봇에게 "별명 관리" 권한이 있어야 하고, 서버 주인과 봇보다 높은 역할의 사람은 디스코드가 막습니다.
+  sync-nickname: true
+
+# ── 채팅 꾸미기 (InteractiveChat 이 하던 것) ────────────────────────────────
+keywords:
+  # 보기 화면이 살아 있는 시간(분)
+  timeout-minutes: 5
+  item:
+    enabled: true
+    pattern: "(?i)\\[item\\]|\\[i\\]"
+    name: "[item]"
+    description: "&a손에 든 아이템을 채팅에 보입니다"
+    # {item} = 아이템 이름, {amount} = 개수 (하나면 singular-text)
+    text: "&f[&f{item} &bx{amount}&f]"
+    singular-text: "&f[&f{item}&f]"
+    title: "{player} 님의 아이템"
+    allow-air: true
+  inventory:
+    enabled: true
+    pattern: "(?i)\\[inv\\]|\\[inventory\\]"
+    name: "[inv]"
+    description: "&b가방을 채팅에 보입니다"
+    text: "&f[&b{player} 님의 가방&f]"
+    title: "{player} 님의 가방"
+    hover: ["&b눌러서 보기!"]
+  ender:
+    enabled: true
+    pattern: "(?i)\\[ender\\]|\\[e\\]"
+    name: "[ender]"
+    description: "&d엔더 상자를 채팅에 보입니다"
+    text: "&f[&d{player} 님의 엔더 상자&f]"
+    title: "{player} 님의 엔더 상자"
+    hover: ["&b눌러서 보기!"]
+  frame:
+    primary: BLACK_STAINED_GLASS_PANE
+    secondary: WHITE_STAINED_GLASS_PANE
+
+mention:
+  enabled: true
+  prefix: "@"
+  # 같은 사람이 다시 멘션 알림을 보낼 수 있을 때까지(초)
+  cooldown-seconds: 3
+  sound: ENTITY_EXPERIENCE_ORB_PICKUP
+  title: "&c&l멘션!"
+  title-seconds: 1.5
+  # {sender} = 보낸 사람
+  subtitle: "&3{sender} &f님이 채팅에서 당신을 불렀습니다!"
+  actionbar: ""
+  bossbar:
+    text: "&3{sender} &f님이 당신을 불렀습니다!"
+    color: YELLOW
+    overlay: PROGRESS
+    seconds: 6.0
+  # {mentioned} = 멘션한 글. 불린 사람에게 / 다른 사람에게
+  highlight-self: "&e{mentioned}"
+  highlight-others: "&3{mentioned}"
+  hover: ["&b{sender} 님이 당신을 불렀습니다!"]
+  # 디스코드에서 연결된 사람을 멘션하면 게임에서도 알림 ({user} = 디스코드 이름, {channel})
+  discord-subtitle: "&9{user} &f님이 &9#{channel}&f 에서 당신을 불렀습니다!"
+  discord-highlight: "&9{mentioned}"
+
+# 채팅에 보이는 보낸 사람 이름에 마우스를 올리면 / 누르면
+name-interaction:
+  enabled: true
+  hover:
+    - "&a월드: &7%player_world%"
+    - "&e생물군계: &6%player_biome_capitalized%"
+    - "&c체력: %player_health_rounded%&7/%player_max_health_rounded%"
+    - "&b핑: &7%player_colored_ping% &bms"
+  # SUGGEST_COMMAND(입력창에 넣기) · RUN_COMMAND · OPEN_URL · COPY_TO_CLIPBOARD
+  click-action: SUGGEST_COMMAND
+  click-value: "/msg {player} "
+
+# 채팅의 [/명령어] 를 누르면 입력창에 넣기
+command-tags:
+  enabled: true
+  text: "&b[&e{command}&b]"
+  hover: ["&e눌러서 명령어 쓰기!"]
+
+# 채팅 입력창 탭 완성에 [item] 같은 이름 넣기 — 접속할 때 한 번만 계산합니다
+completions: true
+
+# ── 디스코드로 보내는 아이템 그림 (InteractiveChatDiscordSrvAddon 이 하던 것) ──────
+render:
+  enabled: true
+  # GUI 한 픽셀이 그림 몇 픽셀인지(2~4). 클수록 선명하고 파일이 크다
+  scale: 2
+  # 아이템 이름·툴팁 번역 언어(마인크래프트 언어 코드)
+  language: ko_kr
+  # 그림 자원(마인크래프트 클라이언트 jar·한글 글꼴·번역)이 assets/ 에 없으면 Mojang 에서 받기(처음 한 번, 약 40MB)
+  auto-download: true
+  # 서버 리소스팩 — 커스텀 아이템 모양. plugins 폴더 기준, 빈칸이면 바닐라만
+  server-pack: "inmc-customitems/pack/output/pack.zip"
+  # 그림 일꾼 수(낮은 우선순위)
+  threads: 2
+
+# ── 디스코드 슬래시 명령어 (InteractiveChatDiscordSrvAddon 의 DiscordCommands) ────
+slash:
+  # /접속목록 — 탭리스트 그림
+  player-list:
+    enabled: true
+    # {online} {max} + PlaceholderAPI
+    header: ["&a접속 중인 플레이어 ({online}/{max})"]
+    footer: []
+    # 줄마다의 이름. {player} = 실명, PlaceholderAPI 는 그 사람 기준
+    player-format: "%titleforge_title_display% %titleforge_nickname%"
+    max-players: 80
+    # 앞의 것부터 견준다 — PLACEHOLDER:%자리표시%(작은 값 먼저) · PLACEHOLDER_REVERSE:%자리표시%(큰 값 먼저) · PLAYERNAME
+    order-by:
+      - "PLACEHOLDER_REVERSE:%luckperms_meta_weight%"
+      - "PLAYERNAME"
+  # /정보 [플레이어] — 비우면 내 연결 계정
+  player-info:
+    enabled: true
+    title: "{player} 님의 정보"
+    online:
+      - "%titleforge_title_display% %titleforge_nickname%"
+      - "&7상태: &a접속 중"
+      - "&7잔고: &f%vault_eco_balance_commas%"
+    offline:
+      - "{player}"
+      - "&7상태: &c접속 안 함"
+  # /아이템 [칸] [멤버] · /인벤 [멤버] · /엔더 [멤버] — 연결된 계정의 것을 디스코드와 게임에 같이 올린다
+  share:
+    enabled: true
+    # 멤버를 골라 남의 것을 올릴 수 있는 역할
+    others-roles: [어드민, Owner]
+
+# ── 디스코드 첨부 그림 → 게임 ────────────────────────────────────────────────
+# 게임 채팅의 [파일이름] 을 누르면 지도 제작대 화면에 지도로 보입니다(움직이는 GIF 는 재생 막대와 함께)
+attachments:
+  preview: true
+  # 이보다 큰 그림은 받지 않습니다(MB)
+  max-mb: 8
+  # 이 시간이 지난 첨부는 미리 볼 수 없습니다
+  keep-hours: 24

@@ -1,0 +1,46 @@
+name: inmc-discord
+version: '${version}'
+main: com.inmc.discord.DiscordPlugin
+api-version: '${apiVersion}'   # build.gradle.kts 의 inmc { paper } 에서 유도됨
+description: inmc-디스코드 - 디스코드 연동(DiscordSRV)과 채팅 아이템 보이기(InteractiveChat)를 하나로
+authors: [ INMC ]
+
+# DiscordSRV·InteractiveChat·InteractiveChatDiscordSrvAddon 을 대신한다 — 같이 넣지 않는다(같은 봇이 두 번 말한다).
+# 연동은 전부 load: OMIT 이다. BEFORE 를 걸면 Paper 가 의존성 순환을 보고 우리 간선을
+# 조용히 끊는다 (가이드 함정 1).
+dependencies:
+  server:
+    # core 가 kotlin-stdlib 과 공용 프레임워크를 들고 있다. join-classpath 없이는 클래스가 보이지 않는다.
+    inmc-core:      { load: BEFORE, required: true,  join-classpath: true }
+    PlaceholderAPI: { load: OMIT,   required: false, join-classpath: true }
+
+# commands 절은 paper-plugin.yml 에 없다 - Brigadier 로 등록한다.
+
+permissions:
+  inmcdiscord.admin:
+    description: 디스코드 관리 전체 (리로드·상태·검증)
+    default: op
+  inmcdiscord.link:
+    description: /디스코드 연결 · 연결해제 — 마인크래프트 계정을 디스코드 계정과 잇기
+    default: true
+  inmcdiscord.view:
+    description: 채팅의 [item]·[inv]·[ender] 를 눌러 보기 화면 열기
+    default: true
+  inmcdiscord.keyword.item:
+    description: 채팅에 [item] 으로 손에 든 아이템 보이기
+    default: true
+  inmcdiscord.keyword.inventory:
+    description: 채팅에 [inv] 로 가방 보이기
+    default: true
+  inmcdiscord.keyword.ender:
+    description: 채팅에 [ender] 로 엔더 상자 보이기
+    default: true
+  inmcdiscord.mention.player:
+    description: 채팅에서 @이름 으로 멘션하기
+    default: true
+  inmcdiscord.mention.here:
+    description: 채팅에서 @here 로 접속자 전원 멘션하기
+    default: op
+  inmcdiscord.mention.everyone:
+    description: 채팅에서 @everyone 으로 접속자 전원 멘션하기
+    default: op

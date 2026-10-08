@@ -1,0 +1,109 @@
+# inmc-discord 메시지. 게임 안 메시지는 MiniMessage·&색, 키를 지우면 기본값이 쓰입니다.
+# discord- 로 시작하는 키는 디스코드로 보내는 글입니다 — 디스코드 마크다운(**굵게**) 그대로, 색 코드 없이.
+# 자리표시: {player} · {value} · {count} · {code} · {name} · {uuid} · {id} · {user} · {error} · {bot} · {command}
+
+prefix: "<gradient:#7289da:#99aab5>[ 디스코드 ]</gradient> "
+
+# --- 공통 ---
+player-only: "<red>플레이어만 쓸 수 있습니다.</red>"
+no-permission: "<red>권한이 없습니다.</red>"
+reloaded: "<green>다시 불러왔습니다.</green>"
+bot-offline: "<red>디스코드 봇이 연결되어 있지 않습니다.</red>"
+
+# --- /디스코드 ---
+invite: "&b저희 서버 디스코드에 들어와 주세요! <click:open_url:'{value}'><u>{value}</u></click>"
+invite-none: "<gray>디스코드 초대 링크가 정해지지 않았습니다.</gray>"
+
+# --- 계정 연결 (게임) ---
+code-generated: "링크 코드는 <click:copy_to_clipboard:'{code}'><hover:show_text:'클릭하여 복사'><aqua><b>{code}</b></aqua></hover></click> 입니다. 봇(<aqua>{bot}</aqua>)에게 개인 메세지로 해당 코드를 보내주세요! <gray>({count}분 동안)</gray>"
+linked-now: "&b당신의 UUID 는 Discord 사용자 {user} ({id}) 에게 연동되었습니다!"
+already-linked: "&b당신의 마인크래프트 계정은 디스코드 계정과 이미 연결되어 있습니다."
+linked-status: "&b당신의 마인크래프트 계정은 디스코드 계정 {name}과 연결되어 있습니다."
+unlinked: "&b당신의 마인크래프트 계정은 더 이상 {name}과 연결되어있지 않습니다."
+not-linked: "&c당신의 마인크래프트 계정은 디스코드 계정과 연결되어있지 않습니다."
+
+# --- 디스코드 → 게임 ---
+attachment: "&e[&b{name}&e]"
+attachment-hover: "&b눌러서 미리보기"
+attachment-link: " &a(원본)"
+attachment-link-hover: "&e눌러서 원본 열기"
+preview-title: "{name}"
+preview-loading: "<gray>그림을 불러오는 중…</gray>"
+preview-expired: "<red>이 그림은 만료되었습니다.</red>"
+preview-not-image: "<red>게임에서 미리 볼 수 없는 파일입니다. (원본) 을 눌러 여세요.</red>"
+preview-failed: "<red>그림을 불러오지 못했습니다.</red>"
+
+# --- 디스코드에서 공유(/아이템 · /인벤 · /엔더) — {item} 은 누르면 보기 화면 ---
+share-item: "&6{player} 님이 디스코드에서 아이템을 공유했습니다: &f{item}"
+share-inventory: "&6{player} 님이 디스코드에서 가방을 공유했습니다: &f{item}"
+share-ender: "&6{player} 님이 디스코드에서 엔더 상자를 공유했습니다: &f{item}"
+
+# --- 채팅 꾸미기 ---
+view-expired: "<red>이 보기 화면은 만료되었습니다!</red>"
+empty-hand: "<red>보일 아이템이 없습니다! 손에 무언가를 들어 주세요.</red>"
+placeholder-list-header: "<yellow>채팅 자리표시 목록:</yellow>"
+placeholder-list-line: "<aqua>{count}.</aqua> \"<white>{name}</white>\" <gold>-</gold> {value}"
+
+# --- 관리 ---
+status: |-
+  <gold>디스코드 상태</gold>
+  <gray>봇:</gray> {value}
+  <gray>연결 계정:</gray> <white>{count}명</white>
+  <gray>콘솔 대기 줄:</gray> <white>{name}</white>
+  <gray>아이템 그림:</gray> {bot}
+
+verify-start: "<gray>디스코드 검증을 시작합니다…</gray>"
+verify-ok: "<green> ✔ {name}</green> <gray>{value}</gray>"
+verify-fail: "<red> ✘ {name}</red> <gray>— {value}</gray>"
+verify-warn: "<yellow> ! {name}</yellow> <gray>— {value}</gray>"
+verify-done: "<gold>디스코드 검증</gold> <gray>— 통과 <green>{count}</green> · 실패 <red>{value}</red></gray>"
+
+# --- 도움말 ---
+help: |-
+  <gold>/디스코드</gold> <gray>- 초대 링크</gray>
+  <gold>/디스코드 연결</gold> <gray>· </gray><gold>/디스코드 연결해제</gold> <gray>- 디스코드 계정 잇기</gray>
+  <gold>/디스코드 자리표시</gold> <gray>- 채팅에 쓸 수 있는 [item] 같은 것</gray>
+help-admin: |-
+  <red>/디스코드 관리 리로드</red> <gray>· </gray><red>/디스코드 관리 상태</red> <gray>· </gray><red>/디스코드 관리 검증 [보내기]</red>
+  <red>/디스코드 관리 시험 <접속|처음접속|퇴장|사망></red> <gray>· </gray><red>/디스코드 관리 별명 [플레이어]</red>
+
+# --- 디스코드로 보내는 글 ---
+discord-unknown-code: "그런 코드는 발급한 적 없습니다, 다시 시도 해 주세요."
+discord-invalid-code: "코드가 올바르지 않습니다. 코드는 4자리 숫자로 구성 되어 있습니다."
+discord-linked: "{name} (UUID : {uuid})의 연동이 성공하였습니다!"
+discord-already-linked: "이미 {name}({uuid}) 에 연결되어 있습니다"
+discord-list-header: "**온라인 중인 플레이어 ({count} 명):**"
+discord-list-empty: "**현재 온라인인 플레이어가 없습니다.**"
+discord-list-separator: ", "
+discord-command-error: "**{user}님,** 명령어 실행중 오류가 발생하였습니다. 에러 코드: {error}"
+discord-command-no-role: "권한 없음"
+discord-command-not-allowed: "허용되지 않은 명령어 ({command})"
+discord-command-blocked: "콘솔 채널에서 막아 둔 명령어입니다: `{command}`"
+discord-console-dropped: "... (줄이 너무 많아 {count}줄을 건너뜀)"
+discord-item-title: "{player} 님의 아이템"
+discord-inventory-title: "{player} 님의 가방"
+discord-ender-title: "{player} 님의 엔더 상자"
+discord-empty: "(비어 있음)"
+discord-and-more: "... 외 {count}개"
+discord-select-slot: "칸을 골라 자세히 보기"
+discord-expired: "보기가 만료되었습니다. 게임에서 다시 보여 주세요."
+discord-render-failed: "그림을 그리지 못했습니다."
+discord-button-contents: "내용 보기"
+discord-button-book: "책 보기"
+discord-button-map: "지도 보기"
+discord-button-prev: "◀"
+discord-button-next: "▶"
+discord-slot-hotbar: "단축바 {count}"
+discord-slot-bag: "가방 {count}"
+discord-slot-head: "투구"
+discord-slot-chest: "갑옷"
+discord-slot-legs: "바지"
+discord-slot-feet: "신발"
+discord-slot-offhand: "왼손"
+discord-slot-ender: "칸 {count}"
+discord-not-linked: "마인크래프트 계정과 연결되어 있지 않습니다. 게임에서 `/디스코드 연결` 을 해 주세요."
+discord-player-offline: "{name} 님은 지금 접속해 있지 않습니다."
+discord-no-permission: "권한이 없습니다."
+discord-unknown-player: "그런 플레이어를 찾지 못했습니다."
+discord-info-linked: "디스코드: {user}"
+discord-verify-message: "inmc-discord 검증 메시지입니다 — 10초 뒤 지워집니다."

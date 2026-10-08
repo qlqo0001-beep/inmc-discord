@@ -1,0 +1,11 @@
+.gradle/
+.kotlin/
+build/
+/bin/
+/out/
+.idea/
+*.iml
+.vscode/
+Thumbs.db
+desktop.ini
+.DS_Store
