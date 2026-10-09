@@ -156,7 +156,7 @@ class Bot(private val discord: Discord) {
         }
 
         override fun onButtonInteraction(event: net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent) {
-            runCatching { discord.interactions.onButton(event) }
+            runCatching { discord.panel.onButton(event) || discord.interactions.onButton(event) }
                 .onFailure { discord.logger.log(Level.WARNING, "단추 처리 실패", it) }
         }
 
@@ -185,6 +185,7 @@ class Bot(private val discord: Discord) {
         guild()?.updateCommands()?.addCommands(commands)
             ?.queue(null) { discord.logger.warning("슬래시 명령어를 올리지 못했습니다: ${it.message}") }
         restartTopics(initial = true)
+        discord.panel.start()
         announceStartIfReady()
     }
 
@@ -192,7 +193,16 @@ class Bot(private val discord: Discord) {
         if (announced || !serverStarted || jda == null) return
         announced = true
         val text = discord.settings.lifecycle.startup
-        if (text.isNotBlank()) chatChannel()?.let { send(it, text) }
+        val chat = chatChannel() ?: return
+        // 패널의 "켜지면 알림 받기" 역할(2026-10-09) — 그 역할 하나만 멘션을 허락한다.
+        val role = discord.panel.notifyRoleId()
+        if (role == null) {
+            if (text.isNotBlank()) send(chat, text)
+            return
+        }
+        val body = "<@&$role> " + text.ifBlank { discord.messages.discord("discord-panel-notify-ping") }
+        val data = MessageCreateBuilder().setContent(body.take(Message.MAX_CONTENT_LENGTH)).setAllowedMentions(SAFE_MENTIONS).mentionRoles(listOf(role.toString())).build()
+        chat.sendMessage(data).queue(null) { discord.logger.warning("디스코드로 보내지 못했습니다: ${it.message}") }
     }
 
     /** 리로드 때 주기가 바뀌었을 수 있다. */
@@ -250,6 +260,7 @@ class Bot(private val discord: Discord) {
             val chat = chatChannel()
             if (text.isNotBlank() && chat != null) message(text)?.let { pending += chat.sendMessage(it).submit() }
             pending += Topics(discord).update(shutdown = true)
+            pending += discord.panel.shutdown()
             runCatching { CompletableFuture.allOf(*pending.toTypedArray()).get(SHUTDOWN_WAIT.toMillis(), TimeUnit.MILLISECONDS) }
             jda.shutdown()
             if (!runCatching { jda.awaitShutdown(SHUTDOWN_WAIT) }.getOrDefault(false)) jda.shutdownNow()

@@ -2,6 +2,7 @@ package com.inmc.discord.bot
 
 import com.inmc.discord.Discord
 import com.inmc.discord.render.model.ItemView
+import com.inmc.discord.status.PanelLayout
 import com.inmc.discord.util.Ph
 import net.dv8tion.jda.api.EmbedBuilder
 import net.dv8tion.jda.api.Permission
@@ -38,7 +39,7 @@ class Verifier(private val discord: Discord) {
         val settings = discord.settings
         val jda = discord.bot.jda
         out += Result("봇 연결", jda != null, discord.bot.state)
-        if (jda == null) return out + renderChecks()
+        if (jda == null) return out + panelChecks(null) + renderChecks()
 
         out += Result("멤버 인텐트", if (GatewayIntent.GUILD_MEMBERS in jda.gatewayIntents) true else null,
             if (GatewayIntent.GUILD_MEMBERS in jda.gatewayIntents) "" else "꺼짐 — @이름 은 연결 계정만 멘션")
@@ -81,6 +82,7 @@ class Verifier(private val discord: Discord) {
             }
         }
         out += Result("연결 계정", true, "${discord.links.count()}명")
+        out += panelChecks(jda)
         out += renderChecks()
 
         if (chat != null && settings.chat.webhook.enabled) {
@@ -99,6 +101,50 @@ class Verifier(private val discord: Discord) {
         val self = channel.guild.selfMember
         val missing = perms.filterNot { self.hasPermission(channel, it) }
         return Result(name, if (missing.isEmpty()) true else if (soft) null else false, missing.joinToString { it.getName() })
+    }
+
+    /** 서버 현황 패널(2026-10-09) — 채널·권한·알림 역할, 그리고 접속자 200명으로 네 상태를 그려 디스코드 한도 안인지. */
+    private fun panelChecks(jda: net.dv8tion.jda.api.JDA?): List<Result> {
+        val out = ArrayList<Result>()
+        val panel = discord.settings.panel
+        out += Result("서버 현황 패널", if (panel.channel == null) null else true, discord.panel.describe())
+        if (jda != null && panel.channel != null) {
+            val channel = jda.getChannelById(net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel::class.java, panel.channel)
+            out += Result("패널 채널", channel != null, channel?.let { "#${it.name}" } ?: "${panel.channel} 을 못 찾음")
+            if (channel != null) {
+                val self = channel.guild.selfMember
+                val missing = listOf(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND, Permission.MESSAGE_EMBED_LINKS).filterNot { self.hasPermission(channel, it) }
+                out += Result("패널 채널 권한", missing.isEmpty(), missing.joinToString { it.getName() })
+                val history = self.hasPermission(channel, Permission.MESSAGE_HISTORY)
+                out += Result("패널 정리(메시지 기록 보기)", if (history) true else null, if (history) "켤 때 남은 패널을 하나로" else "권한 없음 — 패널이 둘이 되면 손으로 지워야 함")
+            }
+        }
+        val guild = discord.bot.guild()
+        if (panel.notifyRole.isNotBlank() && guild != null) {
+            val role = guild.getRolesByName(panel.notifyRole, true).firstOrNull()
+            out += when {
+                role == null -> Result("패널 알림 역할", false, "'${panel.notifyRole}' 이 디스코드 서버에 없음")
+                !guild.selfMember.canInteract(role) -> Result("패널 알림 역할", false, "봇 역할이 '${panel.notifyRole}' 보다 아래")
+                !guild.selfMember.hasPermission(Permission.MANAGE_ROLES) -> Result("패널 알림 역할", false, "역할 관리 권한 없음")
+                else -> Result("패널 알림 역할", true, panel.notifyRole)
+            }
+        }
+        val design = discord.panelDesign
+        out += Result("패널 모양 파일", design.fields.isNotEmpty(), if (design.fields.isEmpty()) "panel.yml 에 칸(fields)이 없음" else "칸 ${design.fields.size}개 · 링크 단추 ${design.links.size}개")
+        val names = (1..200).map { "Verify_Long_Name_$it" }
+        val gathered = PanelLayout.Gathered(names, 200, 200, 19.5, "26.2", PanelLayout.Today(250, 200))
+        val now = System.currentTimeMillis()
+        val problems = PanelLayout.State.entries.mapNotNull { state ->
+            val view = PanelLayout.view(PanelLayout.Data(state, gathered, now - 3_600_000, now, now - 45_000, "검증", now), design, panel.refreshSeconds)
+            val total = view.title.length + view.footer.length + view.fields.sumOf { it.name.length + it.value.length }
+            when {
+                view.fields.any { it.value.length > PanelLayout.FIELD_VALUE_MAX || it.name.length > PanelLayout.FIELD_NAME_MAX } -> "$state 필드가 한도를 넘음"
+                total > EMBED_TOTAL_MAX -> "$state 글자 $total (${EMBED_TOTAL_MAX} 넘음)"
+                else -> null
+            }
+        }
+        out += Result("패널 모양", problems.isEmpty(), problems.joinToString().ifEmpty { "상태 4가지 · 접속자 200명 · 한도 안" })
+        return out
     }
 
     private fun renderChecks(): List<Result> {
@@ -173,5 +219,8 @@ class Verifier(private val discord: Discord) {
 
     private companion object {
         const val CLEANUP_SECONDS = 10L
+
+        /** 디스코드 임베드 하나의 글자 합 한도. */
+        const val EMBED_TOTAL_MAX = 6000
     }
 }

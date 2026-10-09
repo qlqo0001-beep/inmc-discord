@@ -27,6 +27,7 @@
 | 콘솔 로그 | log4j 어펜더(대기열에 넣기만) → 봇 일꾼이 묶어 보냄 | `console.refresh-seconds` |
 | 채널 주제 | 봇 일꾼 | 10분 이상 |
 | 서버 멈춤 감시 | 데몬 스레드 + 1초 심장 | — |
+| 서버 현황 패널 | 봇 일꾼(메시지 고치기) · 메인(접속자 이름·수·TPS·오늘 수를 뜸 — **권한·PAPI 없음**) | `panel.refresh-seconds`(15초 이상), 앞 갱신이 안 끝났으면 건너뜀 |
 
 LuckPerms 컨텍스트 계산기는 등록하지 않는다(DiscordSRV 의 `discordsrv:*` 는 LP 데이터에서 쓰지 않았다).
 
@@ -86,6 +87,8 @@ LuckPerms 컨텍스트 계산기는 등록하지 않는다(DiscordSRV 의 `disco
 | `messages.yml` | 게임 메시지 + `discord-*`(디스코드로 보내는 글) |
 | `placeholders.yml` | 사용자 자리표시 |
 | `links.yml` | 마인크래프트 uuid → 디스코드 id (바뀔 때 바로 저장) |
+| `panel.yml` | 서버 현황 패널의 **모양**(관리자가 고침 — 칸 틀·토큰·색·TPS 등급·단추·링크, `config/PanelDesign`) |
+| `panel-data.yml` | 패널 메시지의 채널·id · 점검 표시 · 오늘 접속한 사람과 최고 동시(날짜별). 같은 날 잠깐 `panel.yml` 이었다 — 켤 때 옮긴다 |
 | `assets/client.jar` · `assets/objects/…` | 그림 자원(위 표) |
 | `cache/skins/` | 스킨 그림(textures.minecraft.net) |
 | `preview-maps.yml` | 첨부 미리보기에 쓰는 사람마다의 지도 번호 |
@@ -125,6 +128,17 @@ LuckPerms 컨텍스트 계산기는 등록하지 않는다(DiscordSRV 의 `disco
 - 슬래시: `/연결 코드` · `/접속목록`(탭리스트 그림, `order-by`) · `/정보 [플레이어]` · `/아이템 [칸] [멤버]` · `/인벤 [멤버]` · `/엔더 [멤버]`
   (멤버는 `slash.share.others-roles` 만, 게임 채팅에도 [item] 같은 글).
 - 본문 호버(자리표시·`[/명령어]`) → 툴팁 + 커서 그림(메시지 하나에 3장까지).
+- `/정보` 는 `sendInfo` 하나 — 패널의 "내 정보" 단추도 같은 길(누른 사람에게만). `{lastseen}`·`{firstjoin}`·`{playtime}` 은 평문으로 바꾼 **뒤**
+  끼운다(디스코드 타임스탬프 `<t:…>` 를 MiniMessage 가 먹지 않게). 접속 안 한 사람의 플레이 시간은 `<월드>/players/stats/<uuid>.json`(26.x) 을 봇 일꾼이 읽는다.
+
+## 서버 현황 패널 (`status/Panel.kt` · `PanelLayout.kt` · `PanelStore.kt`, 2026-10-09)
+
+- `panel.channel` 의 봇 메시지 하나를 고친다(`editMessageById`). 지워졌으면(Unknown Message) 새로 올리고, 채널을 바꾸면 옛 것을 지운다.
+- 상태: 🟡 켜지는 중(봇 연결 ~ 첫 틱) → 🟢(첫 틱 = "서버 켜진 시간") → 🟠(감시가 멈춤을 봄 — 감시 스레드가 마지막 값으로 그린다) → 🔴(`Bot.stop` 이 JDA 를 닫기 전, 최대 5초 기다림).
+  크래시는 적을 수 없다 — "마지막 갱신 `<t:…:R>`" 이 대신 알린다.
+- 모양은 순수 `PanelLayout.view`(`PanelTest`) — `panel.yml` 의 칸 틀에 토큰을 끼우고, 값이 없는(null) 토큰이 든 줄은 뺀다. `ansi: true` 칸은 `&` 색 코드를
+  ANSI(디스코드 코드 블록이 그리는 여덟 색)로 바꾼다. 필드 1024자·임베드 6000자 안(`/디스코드 관리 검증` 이 200명으로 네 상태를 그려 본다).
+- 단추 열쇠 `inmcd:panel:me|refresh|notify` — `Bot` 이 `Interactions` 보다 먼저 패널에 묻는다.
 
 ## 첨부 그림 → 게임 (`preview/`)
 

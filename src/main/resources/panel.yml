@@ -1,0 +1,115 @@
+# inmc-디스코드 — 서버 현황 패널의 모양
+#
+# 패널에 보이는 글·칸·색·단추를 여기서 고칩니다. 고친 뒤 /디스코드 관리 리로드 하면 다음 갱신(또는 새로고침)부터 바뀝니다.
+# 패널을 켜고 끄는 것·채널·새로 고침 간격·알림 역할은 config.yml 의 panel 에 있습니다.
+#
+# ── 토큰 ────────────────────────────────────────────────────────────────────
+#  {state}      상태 글(아래 states) — 점검 중이면 점검 글이 한 줄 더 붙습니다
+#  {started}    서버 켜진 시각 "2026년 10월 9일 오후 9:30 (한 시간 전)" — 켜지는 중이면 texts.starting
+#  {stopped}    꺼진 시각(오프라인일 때)
+#  {updated}    마지막 갱신 "35초 전"
+#  {since}      멈춘 시각(응답 없음일 때, states.hang 에서)
+#  {online} {max}       접속자 수 · 최대 인원
+#  {players}            접속자 이름(닉네임) — max-names 명까지, 나머지는 texts.players-more
+#  {address} {version}  서버 주소(아래 address) · 마인크래프트 버전
+#  {tps} {tps-label} {tps-color} {tps-dot}   TPS 값 · 쾌적/보통/렉 · 그 등급의 색 코드 · 그 등급의 동그라미(아래 tps)
+#  {today} {peak}       오늘 접속한 사람 수 · 오늘 최고 동시 접속
+#  {refresh}            새로 고침 간격 "1분" (footer 에서)
+#  {reason}             점검 사유 (states.maintenance 에서)
+#
+# **값이 없는 토큰이 든 줄은 통째로 빠집니다** — 주소를 비우면 주소 줄이, 서버가 꺼져 있으면 TPS 줄이 안 보입니다.
+#
+# ── 색 ──────────────────────────────────────────────────────────────────────
+# 디스코드는 글자색을 ansi 코드 블록 안에서만 그립니다. 칸에 ansi: true 를 주면 그 칸이 코드 블록이 되고, 마인크래프트처럼
+#   &a 초록 · &c 빨강 · &6 &e 주황(노랑) · &b 하늘 · &9 파랑 · &d 분홍 · &f 흰색 · &7 &8 회색 · &l 굵게 · &r 처음대로
+# 로 칠할 수 있습니다. ansi 가 아닌 칸의 & 코드는 지워집니다(색 대신 **굵게** 같은 디스코드 마크다운을 쓰세요).
+# ⚠ 시각 토큰({started} {stopped} {updated} {since})은 코드 블록 안에서 그려지지 않습니다 — 그 칸은 ansi 로 두지 마세요.
+# ⚠ 휴대폰 디스코드는 ansi 색을 그리지 못해 색 없이(또는 코드 글자와 함께) 보일 수 있습니다.
+
+title: "INMC 서버 현황"
+# 오른쪽 위 그림 주소(https). 비우면 봇 프로필 사진
+thumbnail: ""
+# {address} 의 값. 비우면 주소 줄이 빠집니다
+address: ""
+# 접속자 칸에 보일 이름 수(1~200)
+max-names: 60
+footer: "{refresh}마다 새로 고칩니다"
+
+# 상태 글
+states:
+  online: "🟢 온라인"
+  starting: "🟡 켜지는 중"
+  hang: "🟠 응답 없음 — {since}부터 멈춤"
+  offline: "🔴 오프라인"
+  maintenance: "🔧 점검 중 — {reason}"
+
+# 왼쪽 세로 띠의 색(상태마다)
+colors:
+  online: "#57F287"
+  starting: "#FEE75C"
+  hang: "#FAA61A"
+  offline: "#ED4245"
+  maintenance: "#5865F2"
+
+# TPS 등급 — 위에서부터 min 이상이면 그 등급. 마지막 것은 나머지 전부(인게임 /tps 처럼 18 · 16 기준)
+tps:
+  - min: 18.0
+    label: "쾌적"
+    color: "&a"
+    dot: "🟢"
+  - min: 16.0
+    label: "보통"
+    color: "&6"
+    dot: "🟠"
+  - label: "렉"
+    color: "&c"
+    dot: "🔴"
+
+texts:
+  starting: "아직 켜지는 중입니다"
+  players-empty: "아무도 없습니다"
+  # {count} = 못 보인 사람 수
+  players-more: " 외 {count}명"
+
+# 칸 — 위에서부터. name 은 칸 제목(굵게), value 는 한 줄 글, lines 는 여러 줄(줄마다 따로 빠질 수 있음).
+# when: 이 칸을 보일 상태(online · starting · hang · offline). 비우면 언제나. inline: true 면 옆 칸과 나란히(최대 셋).
+fields:
+  - name: "상태"
+    value: "{state}"
+  - name: "서버 켜진 시간"
+    value: "{started}"
+    when: [online, starting, hang]
+  - name: "꺼진 시각"
+    value: "{stopped}"
+    when: [offline]
+  - name: "접속자 {online} / {max}"
+    value: "{players}"
+    when: [online, hang]
+  - name: "서버 정보"
+    ansi: true
+    lines:
+      - "&7주소  &e{address}"
+      - "&7버전  &b{version}"
+      - "&7TPS   {tps-color}{tps} {tps-label}"
+      - "&7오늘  &f접속 &a{today}명 &7· &f최고 동시 &d{peak}명"
+  - name: "마지막 갱신"
+    value: "{updated}"
+
+# 단추 이름과 이모지. 알림 단추는 config.yml 의 panel.notify-role 이 있을 때만 보입니다
+buttons:
+  me:
+    label: "내 정보"
+    emoji: "👤"
+  refresh:
+    label: "새로고침"
+    emoji: "🔄"
+  notify:
+    label: "켜지면 알림 받기"
+    emoji: "🔔"
+
+# 링크 단추(최대 5개, 봇이 꺼져 있어도 동작). 게임에서 /디스코드 관리 패널 링크 추가 [이모지] <이름> <주소> · 제거 <이름|번호>
+# 로도 더하고 뺍니다(이 목록을 다시 씁니다). 예:
+#   - label: "홈페이지"
+#     url: "https://example.com"
+#     emoji: "🌐"
+links: []

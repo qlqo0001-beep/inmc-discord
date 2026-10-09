@@ -23,6 +23,11 @@ import org.bukkit.Bukkit
 import org.bukkit.OfflinePlayer
 import org.bukkit.entity.Player
 import java.util.concurrent.CompletableFuture
+import com.inmc.discord.status.PanelLayout
+import com.google.gson.JsonParser
+import org.bukkit.Statistic
+import java.io.File
+import java.util.UUID
 
 /**
  * 디스코드 슬래시 명령어(InteractiveChat 디스코드 애드온의 DiscordCommands).
@@ -125,38 +130,76 @@ class SlashCommands(private val discord: Discord) {
         val name = event.getOption(OPT_PLAYER)?.asString
         val self = discord.links.playerOf(event.user.idLong)
         if (name == null && self == null) return replyEphemeral(event, discord.messages.discord("discord-not-linked"))
-        event.deferReply().queue({ hook ->
-            onMain {
-                val target: OfflinePlayer? = if (name != null) resolve(name.trim()) else self?.let(Bukkit::getOfflinePlayer)
-                if (target == null || (!target.hasPlayedBefore() && !target.isOnline)) return@onMain null
-                val online = target.player
-                val slash = discord.settings.slash
-                val playerName = target.name ?: name ?: "?"
-                val linked = discord.links.discordOf(target.uniqueId)?.let { id -> discord.bot.jda?.getUserById(id)?.name ?: id.toString() }
-                fun line(raw: String) = Texts.plainOf(Text.substituteOnly(raw.replace("{player}", playerName).replace("{discord}", linked ?: "-"), null, online))
-                val lines = (if (online != null) slash.infoOnline else slash.infoOffline).map(::line)
-                val skin = online?.let { ItemViews.skinOf(it).first } ?: runCatching { target.playerProfile.textures.skin?.toString() }.getOrNull()
-                Info(line(slash.infoTitle), lines, linked, skin, target.uniqueId.toString())
-            }.thenCompose { info ->
-                if (info == null) CompletableFuture.completedFuture(null to null)
-                else discord.renderer.headPng(info.skin, info.owner).thenApply { png -> info to png }
-            }.whenComplete { result, _ ->
-                val (info, png) = result ?: (null to null)
-                if (info == null) {
-                    hook.sendMessage(discord.messages.discord("discord-unknown-player")).queue(null) { }
-                    return@whenComplete
-                }
-                val embed = EmbedBuilder().setTitle(info.title.take(256)).setDescription(info.lines.joinToString("\n").take(4000))
-                info.linked?.let { embed.setFooter(discord.messages.discord("discord-info-linked", Ph.of().user(it))) }
-                if (png != null) {
-                    embed.setThumbnail("attachment://head.png")
-                    hook.sendFiles(FileUpload.fromData(png, "head.png")).setEmbeds(embed.build()).queue(null) { }
-                } else hook.sendMessageEmbeds(embed.build()).queue(null) { }
-            }
-        }) { }
+        event.deferReply().queue({ hook -> sendInfo(hook, name, self) }) { }
     }
 
-    private class Info(val title: String, val lines: List<String>, val linked: String?, val skin: String?, val owner: String)
+    /**
+     * `/정보` 와 서버 현황 패널의 "내 정보"(2026-10-09)가 같이 쓴다 — [name] 이 있으면 그 사람, 없으면 [self]. 답은 [hook] 으로
+     * (패널은 누른 사람에게만 보이게 미뤄 둔 것). 줄의 `{lastseen}`(마지막 접속)·`{firstjoin}`(처음 접속)·`{playtime}`(플레이 시간)은
+     * 평문으로 바꾼 **뒤에** 끼운다 — 디스코드 타임스탬프 `<t:…>` 를 MiniMessage 가 태그로 먹지 않게.
+     * 접속 안 한 사람의 플레이 시간은 통계 파일을 메인 밖(봇 일꾼)에서 읽는다.
+     */
+    fun sendInfo(hook: InteractionHook, name: String?, self: UUID?, sent: ((net.dv8tion.jda.api.entities.Message) -> Unit)? = null) {
+        onMain {
+            val target: OfflinePlayer? = if (name != null) resolve(name.trim()) else self?.let(Bukkit::getOfflinePlayer)
+            if (target == null || (!target.hasPlayedBefore() && !target.isOnline)) return@onMain null
+            val online = target.player
+            val slash = discord.settings.slash
+            val playerName = target.name ?: name ?: "?"
+            val unknown = discord.messages.discord("discord-info-unknown")
+            val linked = discord.links.discordOf(target.uniqueId)?.let { id -> discord.bot.jda?.getUserById(id)?.name ?: id.toString() }
+            val lastSeen = if (online != null) discord.messages.discord("discord-info-now") else target.lastSeen.takeIf { it > 0 }?.let(PanelLayout::moment) ?: unknown
+            val firstJoin = target.firstPlayed.takeIf { it > 0 }?.let { PanelLayout.stamp(it, 'D') } ?: unknown
+            fun line(raw: String) = Texts.plainOf(Text.substituteOnly(raw.replace("{player}", playerName).replace("{discord}", linked ?: "-"), null, online))
+                .replace("{lastseen}", lastSeen).replace("{firstjoin}", firstJoin)
+            val lines = (if (online != null) slash.infoOnline else slash.infoOffline).map(::line)
+            val skin = online?.let { ItemViews.skinOf(it).first } ?: runCatching { target.playerProfile.textures.skin?.toString() }.getOrNull()
+            Info(
+                line(slash.infoTitle), lines, linked, skin, target.uniqueId,
+                playTicks = online?.getStatistic(Statistic.PLAY_ONE_MINUTE)?.toLong(),
+                world = if (online == null) Bukkit.getWorlds().firstOrNull()?.worldFolder else null,
+            )
+        }.thenApplyAsync({ info ->
+            if (info == null) return@thenApplyAsync null
+            val ticks = info.playTicks ?: info.world?.let { playTicks(it, info.owner) }
+            val text = ticks?.let(PanelLayout::playtime) ?: discord.messages.discord("discord-info-unknown")
+            info.copy(title = info.title.replace("{playtime}", text), lines = info.lines.map { it.replace("{playtime}", text) })
+        }, discord.bot.scheduler).thenCompose { info ->
+            if (info == null) CompletableFuture.completedFuture(null to null)
+            else discord.renderer.headPng(info.skin, info.owner.toString()).thenApply { png -> info to png }
+        }.whenComplete { result, _ ->
+            val (info, png) = result ?: (null to null)
+            if (info == null) {
+                hook.sendMessage(discord.messages.discord("discord-unknown-player")).queue({ sent?.invoke(it) }) { }
+                return@whenComplete
+            }
+            val embed = EmbedBuilder().setTitle(info.title.take(256)).setDescription(info.lines.joinToString("\n").take(4000))
+            info.linked?.let { embed.setFooter(discord.messages.discord("discord-info-linked", Ph.of().user(it))) }
+            if (png != null) {
+                embed.setThumbnail("attachment://head.png")
+                hook.sendFiles(FileUpload.fromData(png, "head.png")).setEmbeds(embed.build()).queue({ sent?.invoke(it) }) { }
+            } else hook.sendMessageEmbeds(embed.build()).queue({ sent?.invoke(it) }) { }
+        }
+    }
+
+    /** 접속 안 한 사람의 플레이 시간(틱) — 26.x 는 `<월드>/players/stats/`, 그 전은 `<월드>/stats/`. 봇 일꾼에서. */
+    private fun playTicks(world: File, uuid: UUID): Long? {
+        val file = listOf(File(world, "players/stats/$uuid.json"), File(world, "stats/$uuid.json")).firstOrNull { it.isFile } ?: return null
+        return runCatching {
+            val custom = JsonParser.parseString(file.readText()).asJsonObject.getAsJsonObject("stats")?.getAsJsonObject("minecraft:custom")
+            (custom?.get("minecraft:play_time") ?: custom?.get("minecraft:play_one_minute"))?.asLong
+        }.getOrNull()
+    }
+
+    private data class Info(
+        val title: String,
+        val lines: List<String>,
+        val linked: String?,
+        val skin: String?,
+        val owner: UUID,
+        val playTicks: Long?,
+        val world: File?,
+    )
 
     /**
      * 메인 스레드. 마크 이름(접속자 → 서버에 들어온 적 있는 이름), 없으면 타이틀포지 닉네임(오프라인 포함). 웹 조회는 하지 않는다.

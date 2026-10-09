@@ -58,6 +58,20 @@ verify-fail: "<red> ✘ {name}</red> <gray>— {value}</gray>"
 verify-warn: "<yellow> ! {name}</yellow> <gray>— {value}</gray>"
 verify-done: "<gold>디스코드 검증</gold> <gray>— 통과 <green>{count}</green> · 실패 <red>{value}</red></gray>"
 
+# --- 서버 현황 패널 (2026-10-09) ---
+panel-no-channel: "<red>config.yml 의 panel.channel 이 비어 있어 패널이 꺼져 있습니다.</red>"
+panel-posting: "<gray>패널을 다시 올립니다 — 옛 메시지는 지웁니다.</gray>"
+panel-maintenance-on: "<yellow>패널을 점검 중으로 바꿨습니다:</yellow> <white>{value}</white>"
+panel-maintenance-off: "<green>패널의 점검 표시를 뗐습니다.</green>"
+panel-link-header: "<gold>패널 링크 단추</gold> <gray>({count}/{value})</gray>"
+panel-link-line: "<aqua>{count}.</aqua> <white>{name}</white> <gray>→ {value}</gray>"
+panel-link-empty: "<gray>링크 단추가 없습니다. /디스코드 관리 패널 링크 추가 [이모지] <이름> <주소></gray>"
+panel-link-added: "<green>링크 단추를 더했습니다:</green> <white>{name}</white> <gray>→ {value}</gray>"
+panel-link-removed: "<green>링크 단추를 뺐습니다:</green> <white>{name}</white>"
+panel-link-missing: "<red>그런 링크 단추가 없습니다: {name}</red>"
+panel-link-invalid: "<red>링크 단추를 더하지 못했습니다 — {value}</red>"
+panel-link-full: "<red>링크 단추는 {count}개까지입니다.</red>"
+
 # --- 도움말 ---
 help: |-
   <gold>/디스코드</gold> <gray>- 초대 링크</gray>
@@ -66,6 +80,7 @@ help: |-
 help-admin: |-
   <red>/디스코드 관리 리로드</red> <gray>· </gray><red>/디스코드 관리 상태</red> <gray>· </gray><red>/디스코드 관리 검증 [보내기]</red>
   <red>/디스코드 관리 시험 <접속|처음접속|퇴장|사망></red> <gray>· </gray><red>/디스코드 관리 별명 [플레이어]</red>
+  <red>/디스코드 관리 패널</red> <gray>(다시 올리기) · </gray><red>점검 <사유></red> <gray>· </gray><red>점검해제</red> <gray>· </gray><red>링크 [추가 [이모지] <이름> <주소> | 제거 <이름|번호>]</red>
 
 # --- 디스코드로 보내는 글 ---
 discord-unknown-code: "그런 코드는 발급한 적 없습니다, 다시 시도 해 주세요."
@@ -107,3 +122,11 @@ discord-no-permission: "권한이 없습니다."
 discord-unknown-player: "그런 플레이어를 찾지 못했습니다."
 discord-info-linked: "디스코드: {user}"
 discord-verify-message: "inmc-discord 검증 메시지입니다 — 10초 뒤 지워집니다."
+discord-info-now: "지금 접속 중"
+discord-info-unknown: "-"
+
+# --- 서버 현황 패널 (2026-10-09) — 단추의 답. 패널에 보이는 글·칸·색은 panel.yml ---
+discord-panel-notify-added: "서버가 켜지면 알림을 받습니다. ({name} 역할)"
+discord-panel-notify-removed: "알림 역할을 뺐습니다. 더는 알림이 오지 않습니다."
+discord-panel-notify-failed: "역할을 바꾸지 못했습니다 — 관리자에게 알려 주세요."
+discord-panel-notify-ping: "서버가 켜졌습니다! 접속해 보세요."

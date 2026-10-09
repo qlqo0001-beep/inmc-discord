@@ -3,6 +3,8 @@ package com.inmc.discord.command
 import com.inmc.discord.Discord
 import com.inmc.discord.DiscordPlugin
 import com.inmc.discord.chat.ViewMenu
+import com.inmc.discord.config.PanelDesign
+import com.inmc.discord.status.PanelLayout
 import com.inmc.discord.relay.Texts
 import com.inmc.discord.util.Ph
 import com.mojang.brigadier.arguments.StringArgumentType
@@ -108,6 +110,51 @@ class DiscordCommand(private val discord: Discord, private val plugin: DiscordPl
                                     },
                             ),
                     )
+                    // 서버 현황 패널(2026-10-09) — 다시 올리기 · 점검 표시 · 링크 단추 더하기/빼기.
+                    .then(
+                        Commands.literal("패널")
+                            .executes { ctx -> panelRepost(sender(ctx)); 1 }
+                            .then(Commands.literal("올리기").executes { ctx -> panelRepost(sender(ctx)); 1 })
+                            .then(
+                                Commands.literal("점검").then(
+                                    Commands.argument("사유", StringArgumentType.greedyString()).executes { ctx ->
+                                        val reason = StringArgumentType.getString(ctx, "사유").trim()
+                                        discord.panel.maintenance(reason)
+                                        discord.messages.send(sender(ctx), "panel-maintenance-on", Ph.of().value(reason))
+                                        if (discord.settings.panel.channel == null) discord.messages.send(sender(ctx), "panel-no-channel")
+                                        1
+                                    },
+                                ),
+                            )
+                            .then(Commands.literal("점검해제").executes { ctx ->
+                                discord.panel.maintenance(null)
+                                discord.messages.send(sender(ctx), "panel-maintenance-off")
+                                1
+                            })
+                            .then(
+                                Commands.literal("링크")
+                                    .executes { ctx -> linkList(sender(ctx)); 1 }
+                                    .then(Commands.literal("목록").executes { ctx -> linkList(sender(ctx)); 1 })
+                                    .then(
+                                        Commands.literal("추가").then(
+                                            Commands.argument("내용", StringArgumentType.greedyString()).executes { ctx ->
+                                                linkAdd(sender(ctx), StringArgumentType.getString(ctx, "내용"))
+                                                1
+                                            },
+                                        ),
+                                    )
+                                    .then(
+                                        Commands.literal("제거").then(
+                                            Commands.argument("이름", StringArgumentType.greedyString())
+                                                .suggests { _, builder -> discord.panelDesign.links.forEach { builder.suggest(it.label) }; builder.buildFuture() }
+                                                .executes { ctx ->
+                                                    linkRemove(sender(ctx), StringArgumentType.getString(ctx, "이름"))
+                                                    1
+                                                },
+                                        ),
+                                    ),
+                            ),
+                    )
                     .then(Commands.literal("상태").executes { ctx ->
                         discord.messages.send(
                             sender(ctx), "status",
@@ -116,6 +163,53 @@ class DiscordCommand(private val discord: Discord, private val plugin: DiscordPl
                         1
                     }),
             )
+
+    private fun panelRepost(sender: CommandSender) {
+        if (discord.settings.panel.channel == null) return discord.messages.send(sender, "panel-no-channel")
+        discord.messages.send(sender, "panel-posting")
+        discord.panel.repost()
+    }
+
+    private fun linkList(sender: CommandSender) {
+        val links = discord.panelDesign.links
+        if (links.isEmpty()) return discord.messages.send(sender, "panel-link-empty")
+        discord.messages.send(sender, "panel-link-header", Ph.of().count(links.size).value(PanelDesign.MAX_LINKS.toString()))
+        links.forEachIndexed { i, link ->
+            discord.messages.send(sender, "panel-link-line", Ph.of().count(i + 1).name((link.emoji + " " + link.label).trim()).value(link.url))
+        }
+    }
+
+    /** `[이모지] <이름> <주소>` — 한 줄로 받는다(한글 이름은 Brigadier 낱말 인자에 못 넣는다). */
+    private fun linkAdd(sender: CommandSender, text: String) {
+        val links = discord.panelDesign.links
+        val link = PanelLayout.parseLink(text)
+            ?: return discord.messages.send(sender, "panel-link-invalid", Ph.of().value("[이모지] <이름> <주소> 로 적어 주세요"))
+        PanelDesign.linkProblem(link)?.let { return discord.messages.send(sender, "panel-link-invalid", Ph.of().value(it)) }
+        if (links.size >= PanelDesign.MAX_LINKS) return discord.messages.send(sender, "panel-link-full", Ph.of().count(PanelDesign.MAX_LINKS))
+        writeLinks(links + link) { discord.messages.send(sender, "panel-link-added", Ph.of().name(link.label).value(link.url)) }
+    }
+
+    /** 이름(대소문자 무시) 또는 `링크` 목록의 번호. */
+    private fun linkRemove(sender: CommandSender, key: String) {
+        val links = discord.panelDesign.links
+        val wanted = key.trim()
+        val link = wanted.toIntOrNull()?.let { links.getOrNull(it - 1) } ?: links.firstOrNull { it.label.equals(wanted, ignoreCase = true) }
+            ?: return discord.messages.send(sender, "panel-link-missing", Ph.of().name(wanted))
+        writeLinks(links - link) { discord.messages.send(sender, "panel-link-removed", Ph.of().name(link.label)) }
+    }
+
+    /**
+     * `panel.yml` 의 `links` 만 바꿔 쓰고(워커, 원자적) 다시 읽는다 — 리로드가 패널을 다시 그린다.
+     * Bukkit 이 주석을 지키며 다시 쓴다(`PanelTest` 가 배포 파일로 확인).
+     */
+    private fun writeLinks(links: List<PanelDesign.Link>, done: () -> Unit) {
+        discord.io.async({
+            val file = discord.io.file("panel.yml")
+            val config = discord.io.load(file)
+            config.set("links", PanelDesign.linksYaml(links))
+            discord.io.save(file, config)
+        }) { plugin.reload(done) }
+    }
 
     /** 별명 맞추기를 지금 해 보고 결과를 [sender] 에게(JDA 스레드에서 오므로 메인으로 넘겨 알린다). */
     private fun nicknameTest(sender: org.bukkit.command.CommandSender, uuid: java.util.UUID, name: String) {

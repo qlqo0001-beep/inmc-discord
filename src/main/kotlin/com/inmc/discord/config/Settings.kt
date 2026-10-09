@@ -32,6 +32,7 @@ data class Settings(
     val slash: Slash = Slash(),
     val attachments: Attachments = Attachments(),
     val playerEvents: PlayerEvents = PlayerEvents(),
+    val panel: Panel = Panel(),
 ) {
 
     /** 토큰은 `toString` 에 절대 나오지 않는다 — 설정을 통째로 로그에 찍는 실수를 막는다. */
@@ -224,6 +225,19 @@ data class Settings(
         val firstJoin: PlayerEvent = PlayerEvent("%displayname% 님이 처음으로 서버에 접속하셨습니다!", 0xFFD700),
         val leave: PlayerEvent = PlayerEvent("%displayname% 님이 서버에서 나가셨습니다.", 0xFF0000),
         val death: PlayerEvent = PlayerEvent("%deathmessage%", 0x000000),
+    )
+
+    /**
+     * 서버 현황 패널(2026-10-09) — [channel] 의 봇 메시지 하나를 [refreshSeconds] 마다 고친다. 채널이 비면 끈다.
+     * 보이는 글·칸·색·단추·링크는 `panel.yml`([PanelDesign]).
+     */
+    data class Panel(
+        val channel: Long? = null,
+        val refreshSeconds: Int = 60,
+        /** "켜지면 알림 받기" 단추가 넣고 빼는 디스코드 역할 이름. 비면 단추 없음. */
+        val notifyRole: String = "",
+        /** 단추가 준 나만 보이는 답(내 정보·알림 역할)을 지우기까지 초. 0 이면 안 지움. */
+        val replySeconds: Int = 10,
     )
 
     companion object {
@@ -425,10 +439,20 @@ data class Settings(
                     leave = event("player-events.leave", d.playerEvents.leave),
                     death = event("player-events.death", d.playerEvents.death),
                 ),
+                panel = Panel(
+                    channel = channel("panel.channel"),
+                    refreshSeconds = config.getInt("panel.refresh-seconds", 60).coerceAtLeast(MIN_PANEL_SECONDS),
+                    notifyRole = config.getString("panel.notify-role")?.trim().orEmpty(),
+                    // 디스코드의 상호작용 토큰은 15분 — 그 안에서만 지울 수 있다.
+                    replySeconds = config.getInt("panel.reply-seconds", 10).coerceIn(0, 600),
+                ),
             )
         }
 
         /** 디스코드는 채널 주제 변경을 10분에 두 번까지만 받는다. */
         const val MIN_TOPIC_MINUTES = 10
+
+        /** 패널 새로 고침 하한. 메시지 고치기 한도(채널마다 5초에 5번)보다 한참 느리게. */
+        const val MIN_PANEL_SECONDS = 15
     }
 }

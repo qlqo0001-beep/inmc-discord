@@ -49,8 +49,14 @@ class Watchdog(private val discord: Discord) {
             val settings = discord.settings.watchdog
             if (!settings.enabled) continue
             when (val step = state.observe(System.currentTimeMillis(), lastBeat, settings.timeoutSeconds * 1000L)) {
-                is WatchState.Step.Stalled -> repeat(settings.messageCount) { send(settings.message, 0) }
-                is WatchState.Step.Recovered -> send(settings.recovered, step.seconds)
+                is WatchState.Step.Stalled -> {
+                    discord.panel.hang(lastBeat)
+                    repeat(settings.messageCount) { send(settings.message, 0) }
+                }
+                is WatchState.Step.Recovered -> {
+                    discord.panel.recovered()
+                    send(settings.recovered, step.seconds)
+                }
                 WatchState.Step.None -> Unit
             }
         }

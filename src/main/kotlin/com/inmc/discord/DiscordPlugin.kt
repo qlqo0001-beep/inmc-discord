@@ -19,6 +19,8 @@ class DiscordPlugin : JavaPlugin() {
 
     override fun onEnable() {
         discord = Discord(this)
+        // 패널 자료는 panel-data.yml — 같은 날 잠깐 panel.yml 이었다(지금 panel.yml 은 모양 파일). 기본 파일을 깔기 전에 옮긴다.
+        com.inmc.discord.status.PanelStore.migrateOldFile(dataFolder, logger)
         for (name in RESOURCES) discord.io.copyDefault(name, discord.io.file(name))
         warnConflicts()
         runCatching { Migration(dataFolder, dataFolder.parentFile, logger).runIfNeeded() }
@@ -26,6 +28,7 @@ class DiscordPlugin : JavaPlugin() {
         discord.apply(discord.readFiles())
         discord.lang = Lang.load(dataFolder, discord.settings.render.language, logger)
         discord.links.load { logger.info("연결 계정 ${discord.links.count()}명") }
+        discord.panel.store.loadNow()
 
         chat = ChatListener(discord)
         server.pluginManager.registerEvents(chat, this)
@@ -33,6 +36,7 @@ class DiscordPlugin : JavaPlugin() {
         server.pluginManager.registerEvents(discord.previews, this)
         server.pluginManager.registerEvents(discord.playerEvents, this)
         server.pluginManager.registerEvents(discord.nicknames, this)
+        server.pluginManager.registerEvents(discord.panel, this)
         Signals.register()
         discord.previews.load()
         DiscordCommand(discord, this).register()
@@ -44,6 +48,7 @@ class DiscordPlugin : JavaPlugin() {
         // 모든 플러그인이 켜지고 서버가 첫 틱을 돌 때.
         Bukkit.getScheduler().runTask(this, Runnable {
             discord.bot.markServerStarted()
+            discord.panel.serverStarted()
             discord.watchdog.arm()
             discord.nicknames.bindTitleForge()
         })
@@ -61,6 +66,7 @@ class DiscordPlugin : JavaPlugin() {
         discord.previews.stop()
         discord.previews.flush()
         discord.links.flushBlocking()
+        discord.panel.store.flushBlocking()
         discord.io.shutdown()
     }
 
@@ -70,10 +76,11 @@ class DiscordPlugin : JavaPlugin() {
         closeMenus()
         discord.io.async({ discord.readFiles() }) { files ->
             discord.apply(files)
-            if (files.first.bot.token != oldToken) logger.warning("봇 토큰은 서버를 다시 켜야 바뀝니다")
-            discord.bot.jda?.presence?.activity = files.first.bot.status.takeIf { it.isNotBlank() }
+            if (files.settings.bot.token != oldToken) logger.warning("봇 토큰은 서버를 다시 켜야 바뀝니다")
+            discord.bot.jda?.presence?.activity = files.settings.bot.status.takeIf { it.isNotBlank() }
                 ?.let(net.dv8tion.jda.api.entities.Activity::playing)
             discord.bot.restartTopics()
+            discord.panel.reloaded()
             discord.console.restart()
             for (player in server.onlinePlayers) chat.refreshCompletions(player)
             then()
@@ -96,7 +103,7 @@ class DiscordPlugin : JavaPlugin() {
     }
 
     private companion object {
-        val RESOURCES = listOf("config.yml", "messages.yml", "placeholders.yml")
+        val RESOURCES = listOf("config.yml", "messages.yml", "placeholders.yml", "panel.yml")
         val REPLACED = listOf("DiscordSRV", "InteractiveChat", "InteractiveChatDiscordSrvAddon")
     }
 }

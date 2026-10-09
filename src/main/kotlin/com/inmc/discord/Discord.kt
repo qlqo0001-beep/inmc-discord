@@ -51,6 +51,10 @@ class Discord(override val plugin: DiscordPlugin) : InmcHost {
     @Volatile
     var placeholders: List<CustomPlaceholder> = emptyList()
 
+    /** `panel.yml` — 서버 현황 패널의 모양(2026-10-09). */
+    @Volatile
+    var panelDesign: com.inmc.discord.config.PanelDesign = com.inmc.discord.config.PanelDesign()
+
     /** 아이템 이름·툴팁의 번역 키를 디스코드용 글로 푼다. 켤 때·리로드 때 워커에서 읽는다. */
     @Volatile
     var lang: Lang = Lang.EMPTY
@@ -64,6 +68,9 @@ class Discord(override val plugin: DiscordPlugin) : InmcHost {
     val console = ConsoleRelay(this)
 
     val watchdog = Watchdog(this)
+
+    /** 서버 현황 패널(2026-10-09). */
+    val panel = com.inmc.discord.status.Panel(this)
 
     val snapshots = Snapshots()
 
@@ -93,17 +100,21 @@ class Discord(override val plugin: DiscordPlugin) : InmcHost {
 
     val previews = com.inmc.discord.preview.MapPreviews(this)
 
-    /** 설정 파일 셋을 읽는다. 켤 때(메인)와 리로드(워커)에서. */
-    fun readFiles(): Triple<Settings, Messages, List<CustomPlaceholder>> = Triple(
+    class Files(val settings: Settings, val messages: Messages, val placeholders: List<CustomPlaceholder>, val panel: com.inmc.discord.config.PanelDesign)
+
+    /** 설정 파일 넷을 읽는다. 켤 때(메인)와 리로드(워커)에서. */
+    fun readFiles(): Files = Files(
         Settings.from(io.load(io.file("config.yml")), logger),
         Messages.from(io.load(io.file("messages.yml"))),
         CustomPlaceholder.load(io.load(io.file("placeholders.yml")), logger),
+        com.inmc.discord.config.PanelDesign.load(io.load(io.file("panel.yml")), logger),
     )
 
-    fun apply(files: Triple<Settings, Messages, List<CustomPlaceholder>>) {
-        settings = files.first
-        messages = files.second
-        placeholders = files.third
+    fun apply(files: Files) {
+        settings = files.settings
+        messages = files.messages
+        placeholders = files.placeholders
+        panelDesign = files.panel
     }
 
     /** 다음 틱에 메인에서. 꺼지는 중이면 버린다. */

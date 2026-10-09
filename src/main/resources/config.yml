@@ -151,6 +151,20 @@ watchdog:
   message: "`%date%` %guildowner%, 서버실이 :fire: 타고 있습니다! :bangbang:"
   recovered: "`%date%` 서버가 다시 움직입니다 (멈춤 %seconds%초)"
 
+# ── 서버 현황 패널 ────────────────────────────────────────────────────────────
+# 정한 채널에 봇 메시지 하나를 올리고 refresh-seconds 마다 고칩니다. **보이는 글·칸·색·단추·링크는 panel.yml** 에서 고칩니다.
+# 서버가 꺼질 때 🔴 오프라인과 꺼진 시각을 적고, 멈추면(watchdog) 🟠 응답 없음을 적습니다. 강제 종료는 적을 틈이 없어
+# "마지막 갱신 N분 전" 이 주기보다 오래되면 멈춘 것입니다. 다시 올리기: /디스코드 관리 패널
+# 봇 권한(그 채널): 채널 보기 · 메시지 보내기 · 링크 첨부 · 메시지 기록 보기(켤 때 남은 패널 정리). 알림 역할을 쓰면 역할 관리 + 봇 역할이 그 역할보다 위.
+panel:
+  # 패널을 둘 채널 id. 비우면 패널을 쓰지 않습니다(전용 채널 추천 — 다른 글에 밀려 올라가지 않게)
+  channel: ""
+  # 새로 고침 간격(초). 15 보다 짧게는 안 됩니다
+  refresh-seconds: 60
+  # "켜지면 알림 받기" 단추가 넣고 빼는 역할 이름. 서버 시작 알림(lifecycle.startup)이 이 역할을 멘션합니다. 비우면 단추 없음
+  notify-role: ""
+  # 내 정보·알림 역할 단추의 "나만 보이는 답"을 지우기까지 초. 0 이면 안 지움(최대 600 — 디스코드 상호작용은 15분)
+  reply-seconds: 10
 # ── 계정 연결 ────────────────────────────────────────────────────────────────
 link:
   # 연결하면 줄 디스코드 역할 이름 (빈칸이면 안 줌)
@@ -275,7 +289,8 @@ slash:
     order-by:
       - "PLACEHOLDER_REVERSE:%luckperms_meta_weight%"
       - "PLAYERNAME"
-  # /정보 [플레이어] — 비우면 내 연결 계정
+  # /정보 [플레이어] — 비우면 내 연결 계정. 패널의 "내 정보" 단추도 이 줄을 씁니다.
+  # {player} {discord} + PlaceholderAPI · {lastseen} 마지막 접속 · {firstjoin} 처음 접속 · {playtime} 플레이 시간(디스코드 시각 표기)
   player-info:
     enabled: true
     title: "{player} 님의 정보"
@@ -283,9 +298,14 @@ slash:
       - "%titleforge_title_display% %titleforge_nickname%"
       - "&7상태: &a접속 중"
       - "&7잔고: &f%vault_eco_balance_commas%"
+      - "&7플레이 시간: &f{playtime}"
+      - "&7처음 접속: &f{firstjoin}"
     offline:
       - "{player}"
       - "&7상태: &c접속 안 함"
+      - "&7마지막 접속: &f{lastseen}"
+      - "&7플레이 시간: &f{playtime}"
+      - "&7처음 접속: &f{firstjoin}"
   # /아이템 [칸] [멤버] · /인벤 [멤버] · /엔더 [멤버] — 연결된 계정의 것을 디스코드와 게임에 같이 올린다
   share:
     enabled: true

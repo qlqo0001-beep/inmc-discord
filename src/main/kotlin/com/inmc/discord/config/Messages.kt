@@ -77,6 +77,20 @@ class Messages(values: Map<String, String>) : MessageCatalog<Ph>(values, DEFAULT
             "verify-warn" to "<yellow> ! {name}</yellow> <gray>— {value}</gray>",
             "verify-done" to "<gold>디스코드 검증</gold> <gray>— 통과 <green>{count}</green> · 실패 <red>{value}</red></gray>",
 
+            // --- 서버 현황 패널(2026-10-09) --------------------------------------------------
+            "panel-no-channel" to "<red>config.yml 의 panel.channel 이 비어 있어 패널이 꺼져 있습니다.</red>",
+            "panel-posting" to "<gray>패널을 다시 올립니다 — 옛 메시지는 지웁니다.</gray>",
+            "panel-maintenance-on" to "<yellow>패널을 점검 중으로 바꿨습니다:</yellow> <white>{value}</white>",
+            "panel-maintenance-off" to "<green>패널의 점검 표시를 뗐습니다.</green>",
+            "panel-link-header" to "<gold>패널 링크 단추</gold> <gray>({count}/{value})</gray>",
+            "panel-link-line" to "<aqua>{count}.</aqua> <white>{name}</white> <gray>→ {value}</gray>",
+            "panel-link-empty" to "<gray>링크 단추가 없습니다. /디스코드 관리 패널 링크 추가 [이모지] <이름> <주소></gray>",
+            "panel-link-added" to "<green>링크 단추를 더했습니다:</green> <white>{name}</white> <gray>→ {value}</gray>",
+            "panel-link-removed" to "<green>링크 단추를 뺐습니다:</green> <white>{name}</white>",
+            "panel-link-missing" to "<red>그런 링크 단추가 없습니다: {name}</red>",
+            "panel-link-invalid" to "<red>링크 단추를 더하지 못했습니다 — {value}</red>",
+            "panel-link-full" to "<red>링크 단추는 {count}개까지입니다.</red>",
+
             // --- 도움말 -------------------------------------------------------------
             "help" to listOf(
                 "<gold>/디스코드</gold> <gray>- 초대 링크</gray>",
@@ -87,6 +101,7 @@ class Messages(values: Map<String, String>) : MessageCatalog<Ph>(values, DEFAULT
             "help-admin" to listOf(
                 "<red>/디스코드 관리 리로드</red> <gray>· </gray><red>/디스코드 관리 상태</red> <gray>· </gray><red>/디스코드 관리 검증 [보내기]</red>",
                 "<red>/디스코드 관리 시험 <접속|처음접속|퇴장|사망></red> <gray>· </gray><red>/디스코드 관리 별명 [플레이어]</red>",
+                "<red>/디스코드 관리 패널</red> <gray>(다시 올리기) · </gray><red>점검 <사유></red> <gray>· </gray><red>점검해제</red> <gray>· </gray><red>링크 [추가 [이모지] <이름> <주소> | 제거 <이름|번호>]</red>",
             ).joinToString("\n"),
 
             // --- 디스코드로 보내는 글 --------------------------------------------------
@@ -129,6 +144,14 @@ class Messages(values: Map<String, String>) : MessageCatalog<Ph>(values, DEFAULT
             "discord-unknown-player" to "그런 플레이어를 찾지 못했습니다.",
             "discord-info-linked" to "디스코드: {user}",
             "discord-verify-message" to "inmc-discord 검증 메시지입니다 — 10초 뒤 지워집니다.",
+            "discord-info-now" to "지금 접속 중",
+            "discord-info-unknown" to "-",
+
+            // --- 서버 현황 패널(2026-10-09) — 단추의 답. 패널에 보이는 글은 panel.yml ------------
+            "discord-panel-notify-added" to "서버가 켜지면 알림을 받습니다. ({name} 역할)",
+            "discord-panel-notify-removed" to "알림 역할을 뺐습니다. 더는 알림이 오지 않습니다.",
+            "discord-panel-notify-failed" to "역할을 바꾸지 못했습니다 — 관리자에게 알려 주세요.",
+            "discord-panel-notify-ping" to "서버가 켜졌습니다! 접속해 보세요.",
         )
     }
 }
