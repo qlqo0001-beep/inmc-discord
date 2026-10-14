@@ -3,6 +3,7 @@ package com.inmc.discord.relay
 import com.inmc.discord.Discord
 import com.inmc.discord.chat.ItemViews
 import com.inmc.discord.config.Settings
+import kr.inmc.core.integration.Vanish
 import kr.inmc.core.util.Text
 import net.dv8tion.jda.api.EmbedBuilder
 import net.dv8tion.jda.api.entities.MessageEmbed
@@ -19,20 +20,26 @@ import org.bukkit.event.player.PlayerQuitEvent
  * 접속·처음 접속·퇴장·사망 → 디스코드 채팅 채널(DiscordSRV 의 MinecraftPlayer*Message 처럼 색 띠 + 얼굴 + 한 줄 임베드).
  *
  * 사건 하나에 한 번, 메인 스레드. PAPI 는 형식에 `%` 가 있을 때만 형식에만 돌리고, 사망 문구처럼 **사람이 정한 글이 섞인 값**은
- * 그 뒤에 끼운다(이름 바꾼 무기의 `%…%`·`<red>` 가 풀리지 않게). 숨은(vanish) 플레이어는 보내지 않는다 — CMI 등이 `vanished` 메타데이터를 단다.
+ * 그 뒤에 끼운다(이름 바꾼 무기의 `%…%`·`<red>` 가 풀리지 않게). 숨은(vanish) 플레이어는 보내지 않는다 — core [Vanish](`vanished` 메타데이터,
+ * inmc-essentials·CMI 등이 단다). MONITOR 라 투명 기능이 접속 사건에서 건 값을 본다.
+ * 접속·퇴장 문구가 **null 이면 보내지 않는다** — 타이틀포지(`JoinMessages.shouldSuppress`, HIGH)가 일부러 지운 것이다: 투명 · `titleforge.join.silent` ·
+ * 이름 `filter` · 접속자가 `auto-hide-from` 이상 · 형식이 `''`(first-join 을 비우면 디스코드의 처음 접속 환영도 안 나간다). 게임에 안 나간 알림을
+ * 디스코드에만 내보내지 않는다. 관리자 시험([test])은 사건 없이 보내므로 그대로 나간다.
  */
 class PlayerEvents(private val discord: Discord) : Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     fun onJoin(event: PlayerJoinEvent) {
         val events = discord.settings.playerEvents
+        val message = event.joinMessage() ?: return
         val first = !event.player.hasPlayedBefore() && events.firstJoin.text.isNotBlank()
-        send(event.player, if (first) events.firstJoin else events.join, event.joinMessage())
+        send(event.player, if (first) events.firstJoin else events.join, message)
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     fun onQuit(event: PlayerQuitEvent) {
-        send(event.player, discord.settings.playerEvents.leave, event.quitMessage())
+        val message = event.quitMessage() ?: return
+        send(event.player, discord.settings.playerEvents.leave, message)
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -61,7 +68,7 @@ class PlayerEvents(private val discord: Discord) : Listener {
     }
 
     private fun send(player: Player, format: Settings.PlayerEvent, message: Component?, test: Boolean = false) {
-        if (format.text.isBlank() || (!test && vanished(player))) return
+        if (format.text.isBlank() || (!test && Vanish.isVanished(player))) return
         val channel = discord.bot.chatChannel() ?: return
         val shown = message?.let(discord.lang::plain).orEmpty()
         val values = mapOf(
@@ -81,6 +88,4 @@ class PlayerEvents(private val discord: Discord) : Listener {
             .build()
         discord.bot.send(channel, "", embeds = listOf(embed))
     }
-
-    private fun vanished(player: Player): Boolean = player.getMetadata("vanished").any { it.asBoolean() }
 }

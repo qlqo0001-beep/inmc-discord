@@ -9,6 +9,7 @@ import com.inmc.discord.relay.SnapshotEmbeds
 import com.inmc.discord.relay.Texts
 import com.inmc.discord.util.Ph
 import kr.inmc.core.integration.TitleForgeNames
+import kr.inmc.core.integration.Vanish
 import kr.inmc.core.util.Text
 import net.dv8tion.jda.api.EmbedBuilder
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
@@ -76,8 +77,10 @@ class SlashCommands(private val discord: Discord) {
         event.deferReply().queue({ hook ->
             onMain {
                 val slash = discord.settings.slash
-                val players = sorted(Bukkit.getOnlinePlayers().toList(), slash.listOrder).take(slash.listMax)
-                val online = Bukkit.getOnlinePlayers().size.toString()
+                // 디스코드는 누가 보는지 모른다 — 투명인 사람은 이름도 수도 뺀다(core Vanish, 보는 사람 null).
+                val visible = Vanish.visibleOnline(null)
+                val players = sorted(visible, slash.listOrder).take(slash.listMax)
+                val online = visible.size.toString()
                 val max = Bukkit.getMaxPlayers().toString()
                 fun banner(raw: String) = Text.render(raw.replace("{online}", online).replace("{max}", max))
                 val entries = players.map { p ->
@@ -142,13 +145,21 @@ class SlashCommands(private val discord: Discord) {
     fun sendInfo(hook: InteractionHook, name: String?, self: UUID?, sent: ((net.dv8tion.jda.api.entities.Message) -> Unit)? = null) {
         onMain {
             val target: OfflinePlayer? = if (name != null) resolve(name.trim()) else self?.let(Bukkit::getOfflinePlayer)
-            if (target == null || (!target.hasPlayedBefore() && !target.isOnline)) return@onMain null
-            val online = target.player
+            if (target == null) return@onMain null
+            // 투명인 접속자는 접속 안 한 사람처럼 보인다. 마지막 접속은 이번에 들어온 시각 — Bukkit 은 접속 중인 사람에게 지금 시각을
+            // 주고, "모름" 은 투명인 사람만 받는 값이라 오히려 접속을 드러낸다. 들어온 시각은 나간 지 오래된 사람처럼 그대로 머문다.
+            val hidden = target.player?.let { !Vanish.canSee(null, it) } == true
+            val online = target.player?.takeUnless { hidden }
+            if (!target.hasPlayedBefore() && online == null) return@onMain null
             val slash = discord.settings.slash
             val playerName = target.name ?: name ?: "?"
             val unknown = discord.messages.discord("discord-info-unknown")
             val linked = discord.links.discordOf(target.uniqueId)?.let { id -> discord.bot.jda?.getUserById(id)?.name ?: id.toString() }
-            val lastSeen = if (online != null) discord.messages.discord("discord-info-now") else target.lastSeen.takeIf { it > 0 }?.let(PanelLayout::moment) ?: unknown
+            val lastSeen = when {
+                online != null -> discord.messages.discord("discord-info-now")
+                hidden -> target.lastLogin.takeIf { it > 0 }?.let(PanelLayout::moment) ?: unknown
+                else -> target.lastSeen.takeIf { it > 0 }?.let(PanelLayout::moment) ?: unknown
+            }
             val firstJoin = target.firstPlayed.takeIf { it > 0 }?.let { PanelLayout.stamp(it, 'D') } ?: unknown
             fun line(raw: String) = Texts.plainOf(Text.substituteOnly(raw.replace("{player}", playerName).replace("{discord}", linked ?: "-"), null, online))
                 .replace("{lastseen}", lastSeen).replace("{firstjoin}", firstJoin)
@@ -229,7 +240,8 @@ class SlashCommands(private val discord: Discord) {
         val slot = event.getOption(OPT_SLOT)?.asInt?.minus(1)
         event.deferReply().queue({ hook ->
             onMain {
-                val player = Bukkit.getPlayer(uuid) ?: return@onMain null
+                // 투명이면 접속 안 한 것처럼 — 디스코드 답과 게임 채팅 공지가 접속을 드러낸다.
+                val player = Bukkit.getPlayer(uuid)?.takeIf { Vanish.canSee(null, it) } ?: return@onMain null
                 val snapshot = Snapshot.take(player, kind, slot)
                 val id = discord.snapshots.put(snapshot, discord.settings.keywords.timeoutMinutes)
                 announce(player, kind, snapshot, id)

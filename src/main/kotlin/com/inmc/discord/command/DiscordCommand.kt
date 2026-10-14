@@ -14,6 +14,7 @@ import com.mojang.brigadier.context.CommandContext
 import io.papermc.paper.command.brigadier.CommandSourceStack
 import io.papermc.paper.command.brigadier.Commands
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
+import kr.inmc.core.integration.Vanish
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 
@@ -99,7 +100,7 @@ class DiscordCommand(private val discord: Discord, private val plugin: DiscordPl
                             .executes { ctx -> player(ctx)?.let { nicknameTest(sender(ctx), it.uniqueId, it.name) }; 1 }
                             .then(
                                 Commands.argument("플레이어", StringArgumentType.word())
-                                    .suggests { _, builder -> Bukkit.getOnlinePlayers().forEach { builder.suggest(it.name) }; builder.buildFuture() }
+                                    .suggests { ctx, builder -> Vanish.visibleNames(ctx.source.sender).forEach { builder.suggest(it) }; builder.buildFuture() }
                                     .executes { ctx ->
                                         val raw = StringArgumentType.getString(ctx, "플레이어")
                                         val target = Bukkit.getPlayerExact(raw) ?: Bukkit.getOfflinePlayerIfCached(raw)

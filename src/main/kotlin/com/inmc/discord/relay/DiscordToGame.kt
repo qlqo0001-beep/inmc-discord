@@ -3,6 +3,7 @@ package com.inmc.discord.relay
 import com.inmc.discord.Discord
 import com.inmc.discord.console.ConsoleCommands
 import com.inmc.discord.util.Ph
+import kr.inmc.core.integration.Vanish
 import kr.inmc.core.util.Text
 import net.dv8tion.jda.api.entities.Message
 import net.dv8tion.jda.api.entities.Role
@@ -64,40 +65,39 @@ class DiscordToGame(private val discord: Discord) {
         fun alias(role: Role) = chat.roleAliases[role.name] ?: role.name
         val colored = member != null && member.roles.any { r -> chat.colorRoles.any { it.equals(r.name, ignoreCase = true) } }
 
-        var body: Component = if (colored) LEGACY.deserialize(text) else Component.text(text)
-        // 디스코드에서 멘션된 사람 가운데 연결된 접속자 — 강조하고 알린다.
-        val mentioned = linkedOnline(message)
-        if (mentioned.isNotEmpty()) body = highlight(body, mentioned.map { it.second })
-        for (attachment in attachments) body = body.append(Component.space()).append(attachment(attachment))
+        val base: Component = if (colored) LEGACY.deserialize(text) else Component.text(text)
+        // 디스코드에서 멘션된 사람 가운데 연결된 사람 — 접속 중인지·투명인지는 메인에서 본다(게임 상태는 메인에서, 규칙 5).
+        val mentioned = linkedMentions(message)
+        val files = attachments.map(::attachment)
 
         val reply = message.referencedMessage?.let { ref ->
             Texts.tokens(chat.replyFormat, mapOf("name" to (ref.member?.effectiveName ?: ref.author.effectiveName)))
         }.orEmpty()
-        val line = render(
-            format = if (top == null) chat.gameFormatNoRole else chat.gameFormat,
-            name = member?.effectiveName ?: event.author.effectiveName,
-            role = top?.let(::alias).orEmpty(),
-            roleColor = top?.let(::roleColor).orEmpty(),
-            allRoles = roles.joinToString(chat.allRolesSeparator) { alias(it) },
-            reply = reply,
-            message = body,
-        )
-        val userName = member?.effectiveName ?: event.author.effectiveName
+        val format = if (top == null) chat.gameFormatNoRole else chat.gameFormat
+        val name = member?.effectiveName ?: event.author.effectiveName
+        val role = top?.let(::alias).orEmpty()
+        val color = top?.let(::roleColor).orEmpty()
+        val allRoles = roles.joinToString(chat.allRolesSeparator) { alias(it) }
         val channelName = event.channel.name
         val author = discord.links.playerOf(event.author.idLong)
         discord.runMain {
+            val online = mentioned.mapNotNull { (uuid, shown) -> Bukkit.getPlayer(uuid)?.let { it to shown } }
+            // 투명인 사람은 알림만 받고 강조하지 않는다 — 강조는 모두에게 보여 접속을 드러낸다.
+            val highlighted = online.filter { (player, _) -> Vanish.canSee(null, player) }.map { it.second }
+            var body = if (highlighted.isNotEmpty()) highlight(base, highlighted) else base
+            for (file in files) body = body.append(Component.space()).append(file)
+            val line = render(format, name, role, color, allRoles, reply, body)
             for (player in Bukkit.getOnlinePlayers()) player.sendMessage(line)
             if (discord.settings.chat.toConsole) Bukkit.getConsoleSender().sendMessage(line)
-            for ((uuid, _) in mentioned) Bukkit.getPlayer(uuid)?.let { discord.alerts.fromDiscord(it, userName, channelName) }
+            for ((player, _) in online) discord.alerts.fromDiscord(player, name, channelName)
             author?.let(com.inmc.discord.Signals::chat)
         }
     }
 
-    /** 멘션된 디스코드 사용자 → (연결된 접속자 uuid, 게임에 보이는 "@별명"). */
-    private fun linkedOnline(message: Message): List<Pair<UUID, String>> =
+    /** 멘션된 디스코드 사용자 → (연결된 플레이어 uuid, 게임에 보이는 "@별명"). 접속 여부는 보지 않는다(메인에서 본다). */
+    private fun linkedMentions(message: Message): List<Pair<UUID, String>> =
         message.mentions.users.mapNotNull { user ->
             val uuid = discord.links.playerOf(user.idLong) ?: return@mapNotNull null
-            if (Bukkit.getPlayer(uuid) == null) return@mapNotNull null
             val shown = message.guild.getMember(user)?.effectiveName ?: user.effectiveName
             uuid to "@$shown"
         }
@@ -140,7 +140,8 @@ class DiscordToGame(private val discord: Discord) {
         if (!settings.enabled || !event.message.contentRaw.trim().equals(settings.trigger, ignoreCase = true)) return false
         val channel = event.channel.asTextChannel()
         discord.runMain {
-            val names = Bukkit.getOnlinePlayers().map { Texts.plain(it.displayName()) }.sortedBy { it.lowercase() }
+            // 디스코드는 누가 보는지 모른다 — 투명인 사람은 뺀다(core Vanish, 보는 사람 null).
+            val names = Vanish.visibleOnline(null).map { Texts.plain(it.displayName()) }.sortedBy { it.lowercase() }
             val messages = discord.messages
             val text = if (names.isEmpty()) {
                 messages.discord("discord-list-empty")

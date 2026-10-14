@@ -3,6 +3,7 @@ package com.inmc.discord.relay
 import com.inmc.discord.Discord
 import com.inmc.discord.bot.Bot
 import com.inmc.discord.chat.Snapshot
+import kr.inmc.core.integration.Vanish
 import kr.inmc.core.util.Text
 import net.dv8tion.jda.api.EmbedBuilder
 import net.dv8tion.jda.api.entities.Message
@@ -113,7 +114,8 @@ class GameToDiscord(private val discord: Discord) {
     private fun translateMentions(text: String, guild: net.dv8tion.jda.api.entities.Guild): String {
         if (text.indexOf('@') < 0 && text.indexOf('#') < 0) return text
         val users = ArrayList<Pair<String, String>>()
-        for (online in Bukkit.getOnlinePlayers()) {
+        // 투명인 접속자의 이름은 멘션으로 바꾸지 않는다 — 바뀌면 접속 중인 것이 디스코드에 드러난다.
+        for (online in Vanish.visibleOnline(null)) {
             discord.links.discordOf(online.uniqueId)?.let { users += online.name to "<@$it>" }
         }
         guild.memberCache.forEach { member ->

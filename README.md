@@ -40,6 +40,7 @@ LuckPerms 컨텍스트 계산기는 등록하지 않는다(DiscordSRV 의 `disco
 | 채팅 양방향(`chat.*`) — 형식·역할 색·역할 별명·답장·256자 자르기·멘션 바꾸기·이모지 이름·웹훅 막기·색 역할·콘솔에도 찍기·거르기 | `relay/GameToDiscord.kt` · `relay/DiscordToGame.kt` |
 | 웹훅 전달(`chat.webhook`, 기본 꺼짐) — 메시지마다 플레이어 이름·얼굴(mc-heads.net), 실패하면 봇으로. `url` 이면 이미 있는 웹훅 | `relay/Webhooks.kt` |
 | 접속·처음 접속·퇴장·사망 알림(`player-events`) — 색 띠 + 얼굴 + 한 줄 임베드, 숨은 플레이어 제외 | `relay/PlayerEvents.kt` |
+| **투명(vanish) 숨김**(2026-10-10) — 디스코드는 보는 사람을 모르므로(core `Vanish.canSee(null, …)`) 투명인 사람은 `/접속목록`·`접속목록`·주제 `%playercount%`·패널 이름·수·오늘 접속에서 빠지고, `/정보` 에는 접속 안 한 사람(마지막 접속은 이번 접속 시각 `lastLogin` — "모름" 은 투명인 사람만 받는 값이라 드러낸다)으로, `/아이템`·`/인벤`·`/엔더` 는 "접속 중 아님"으로 보인다. 게임→디스코드 `@이름` 멘션 바꾸기·디스코드→게임 멘션 강조에서도 빠진다(알림은 받음). 게임 채팅의 `@멘션` 은 보낸 사람이 볼 수 있는 사람만, 강조는 보는 사람마다 그 사람이 볼 수 있을 때만(`Decorated.highlight`), 디스코드→게임 멘션의 접속·투명 확인과 주제 `%playercount%` 는 메인에서(규칙 5), `/디스코드 관리 시험 별명` 이름 제안도 `Vanish.visibleNames`. 상태는 메타데이터만 읽어 권한을 묻지 않는다(규칙 1) | 여러 곳 · `DiscordPlugin`(`Vanish.listen` — 풀면 패널 오늘 접속에 셈) |
 | 점검 `/디스코드 관리 검증 [보내기]` — 연결·권한·슬래시·역할·그림·웹훅, 보내기는 시험 메시지를 다시 읽어 확인 | `bot/Verifier.kt` |
 | 콘솔 채널 — 로그(레벨·거르기·코드블록·접두사) · 채널에 친 글 = 콘솔 명령(막은 명령) · 사용 기록 | `console/ConsoleRelay.kt` · `console/ConsoleCommands.kt` |
 | `!c 명령어` — 역할·허용 목록·우회 역할·오류 알림 | `console/ConsoleCommands.kt` |

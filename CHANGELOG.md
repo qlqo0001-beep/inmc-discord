@@ -2,6 +2,20 @@
 
 ---
 
+## 미배포 — 투명·접속 문구·멘션이 새지 않게(2026-10-10)
+
+- **접속·퇴장 문구가 null 이면 디스코드에 올리지 않는다**(`relay/PlayerEvents`) — 투명 · `titleforge.join.silent` · 이름 `filter` · `auto-hide-from` · 빈 형식처럼 타이틀포지
+  `JoinMessages`(HIGH)가 일부러 지운 것(essentials admininfo 도 HIGHEST 에서 지울 수 있다). 게임에 안 나간 알림을 디스코드에만 내보내지 않는다. 관리자 시험
+  (`/디스코드 관리 시험`)은 사건 없이 보내므로 그대로.
+- **게임 채팅의 `@이름` 강조를 보는 사람마다 가린다**(`chat/ChatListener.highlight`) — 보는 사람이 볼 수 없는 투명인 사람을 부른 것은 강조하지 않는다(강조가 접속을 드러낸다).
+  디스코드→게임 멘션도 투명인 사람은 알림만 받고 강조하지 않는다(`relay/DiscordToGame`).
+- **`/정보`(와 패널의 내 정보)에서 투명인 접속자**는 접속 안 한 사람처럼 보이고, 마지막 접속은 **이번에 들어온 시각**(`lastLogin`)으로(`bot/SlashCommands.sendInfo`) —
+  "모름" 은 투명인 사람만 받는 값이라 오히려 접속을 드러낸다.
+- **디스코드→게임 멘션의 접속·투명 판단과 주제의 `%playercount%` 는 메인에서 센다**(규칙 5 — 메타데이터는 메인만). 주제는 봇 일꾼에서 불리면 메인에 맡기고
+  **10초** 안에 답이 없으면 이번 갱신은 건너뛴다(`status/Topics.visibleCount`, `MAIN_WAIT_SECONDS` — 투명인 사람을 셀 바에야).
+- **그림자 뮤트·감옥 거리 채팅은 중계하지 않는다** — 취소되진 않았지만 남에게 가지 않는 글을 core `ChatVisibility.isHidden` 으로 묻는다(공급처는 inmc-essentials
+  moderation, `chat/ChatListener.onChatSent` MONITOR). 멘션 알림도 하지 않는다.
+
 ## 미배포 — 서버 현황 패널 · /정보 에 마지막 접속·플레이 시간(2026-10-09)
 
 - **서버 현황 패널**(사용자 요청 — 음악봇 패널 같은 것): `panel.channel` 의 봇 메시지 하나를 `panel.refresh-seconds`(기본 60, 15 이상)마다 고친다.

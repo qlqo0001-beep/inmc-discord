@@ -8,6 +8,7 @@ import com.inmc.discord.status.PanelLayout.Gathered
 import com.inmc.discord.status.PanelLayout.State
 import com.inmc.discord.util.Ph
 import kr.inmc.core.integration.TitleForgeNames
+import kr.inmc.core.integration.Vanish
 import net.dv8tion.jda.api.EmbedBuilder
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.components.actionrow.ActionRow
@@ -224,7 +225,8 @@ class Panel(private val discord: Discord) : Listener {
         val future = CompletableFuture<Gathered>()
         discord.runMain {
             runCatching {
-                val players = Bukkit.getOnlinePlayers().filterNot(::vanished)
+                // 투명인 사람은 이름·수에서 뺀다(core Vanish — 메타데이터만 읽고 권한은 묻지 않는다, 규칙 1).
+                val players = Vanish.visibleOnline(null)
                 val names = players.map { TitleForgeNames.displayName(it.uniqueId, it.name) }.sortedWith(Collator.getInstance(Locale.KOREAN))
                 val today = store.today(LocalDate.now(discord.settings.time.zone), players.size)
                 store.flush()
@@ -234,11 +236,19 @@ class Panel(private val discord: Discord) : Listener {
         return future.orTimeout(GATHER_TIMEOUT_SECONDS, TimeUnit.SECONDS)
     }
 
-    private fun vanished(player: Player): Boolean = player.getMetadata("vanished").any { it.asBoolean() }
-
+    /** 오늘 접속한 사람·최고 동접은 보이는 사람만 센다 — 투명인 채 들어온 사람이 수를 올리면 접속이 드러난다. */
     @EventHandler(priority = EventPriority.MONITOR)
     fun onJoin(event: PlayerJoinEvent) {
-        store.recordJoin(event.player.uniqueId, Bukkit.getOnlinePlayers().size, LocalDate.now(discord.settings.time.zone))
+        if (!Vanish.isVanished(event.player)) recordVisible(event.player)
+    }
+
+    /** core [Vanish.listen] 에서(메인) — 투명을 풀면 그때 들어온 것으로 센다. 같은 날 두 번 세지 않는다([PanelStore.recordJoin]). */
+    fun onVanish(player: Player, vanished: Boolean) {
+        if (!vanished && player.isOnline) recordVisible(player)
+    }
+
+    private fun recordVisible(player: Player) {
+        store.recordJoin(player.uniqueId, Vanish.visibleOnline(null).size, LocalDate.now(discord.settings.time.zone))
     }
 
     // --- 디스코드 ----------------------------------------------------------------------

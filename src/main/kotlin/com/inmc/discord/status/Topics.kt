@@ -2,6 +2,7 @@ package com.inmc.discord.status
 
 import com.inmc.discord.Discord
 import com.inmc.discord.relay.Texts
+import kr.inmc.core.integration.Vanish
 import kr.inmc.core.util.AtomicFiles
 import kr.inmc.core.util.Text
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel
@@ -16,6 +17,7 @@ import java.util.Locale
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.TimeUnit
 
 /**
  * 채널 주제 — DiscordSRV 의 ChannelTopicUpdater 와 같은 토큰. 봇 일꾼에서 돈다(메인 아님).
@@ -29,7 +31,8 @@ class Topics(private val discord: Discord) {
     /** 보낸 요청들이 다 끝나면 끝나는 것. 꺼질 때 이것을 기다린다. */
     fun update(shutdown: Boolean): CompletableFuture<*> {
         val topic = discord.settings.topic
-        val values = values()
+        val count = visibleCount() ?: return CompletableFuture.completedFuture(null) // 메인이 답하지 않았다 — 다음 주기에 다시 본다
+        val values = values(count)
         val pending = ArrayList<CompletableFuture<*>>()
         val now = System.currentTimeMillis()
         fun set(channel: TextChannel?, format: String) {
@@ -78,12 +81,23 @@ class Topics(private val discord: Discord) {
         }
     }
 
-    private fun values(): Map<String, String> {
+    /**
+     * 보이는 접속자 수 — 투명인 사람은 세지 않는다(메타데이터만 — 권한을 묻지 않는다). 메타데이터 읽기는 스레드에 안전하지 않아
+     * 메인에서 센다(규칙 5). 봇 일꾼에서 불렸으면 메인에 맡기고 기다린다 — 답이 없으면 null(투명인 사람을 셀 바에야 이번은 건너뛴다).
+     */
+    private fun visibleCount(): Int? {
+        if (Bukkit.isPrimaryThread()) return Vanish.visibleOnline(null).size
+        val future = CompletableFuture<Int>()
+        discord.runMain { future.complete(Vanish.visibleOnline(null).size) }
+        return runCatching { future.get(MAIN_WAIT_SECONDS, TimeUnit.SECONDS) }.getOrNull()
+    }
+
+    private fun values(count: Int): Map<String, String> {
         val runtime = Runtime.getRuntime()
         val gb = 1024.0 * 1024.0 * 1024.0
         fun gb(bytes: Long) = String.format(Locale.ROOT, "%.1f", bytes / gb)
         return mapOf(
-            "playercount" to Bukkit.getOnlinePlayers().size.toString(),
+            "playercount" to count.toString(),
             "playermax" to Bukkit.getMaxPlayers().toString(),
             "totalplayers" to totalPlayers().toString(),
             "uptimemins" to (ManagementFactory.getRuntimeMXBean().uptime / 60_000).toString(),
@@ -105,6 +119,7 @@ class Topics(private val discord: Discord) {
 
     companion object {
         private const val MAX_TOPIC = 1024
+        private const val MAIN_WAIT_SECONDS = 10L
 
         /** 플러그인마다 하나 — `Topics` 는 갱신마다 새로 만들어진다. 처음 쓸 때 `topics.yml` 을 읽는다. */
         @Volatile

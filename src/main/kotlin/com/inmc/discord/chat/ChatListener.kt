@@ -6,7 +6,9 @@ import com.inmc.discord.config.Settings
 import com.inmc.discord.relay.Texts
 import io.papermc.paper.chat.ChatRenderer
 import io.papermc.paper.event.player.AsyncChatEvent
+import kr.inmc.core.integration.ChatVisibility
 import kr.inmc.core.integration.TitleForgeNames
+import kr.inmc.core.integration.Vanish
 import kr.inmc.core.util.Text
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.text.Component
@@ -15,6 +17,7 @@ import net.kyori.adventure.text.TextReplacementConfig
 import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.event.HoverEvent
 import org.bukkit.Bukkit
+import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -39,7 +42,7 @@ import java.util.concurrent.TimeUnit
  *   안 잡히므로 그보다 앞에서. 타이틀포지가 LOW 에서 정한 렌더러는 그리는 때에 글을 받으니 순서와 상관없다.
  * - NORMAL: 렌더러를 **감싼다**(타이틀포지가 LOW 에서 정한 뒤라야 한다). 감싼 렌더러는 보는 사람마다 멘션 강조·보는 사람 기준
  *   자리표시를 넣고, 다 그린 줄의 보낸 사람 이름에 호버·클릭을 단다.
- * - MONITOR: 취소되지 않았으면 디스코드로 보내고 멘션 알림.
+ * - MONITOR: 취소되지 않았으면 디스코드로 보내고 멘션 알림(알림은 `viewers()` 에 남은 사람만 — 무시·채팅 끄기·거리 채팅으로 빠진 사람은 안 울린다).
  */
 class ChatListener(private val discord: Discord) : Listener {
 
@@ -135,8 +138,14 @@ class ChatListener(private val discord: Discord) : Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     fun onChatSent(event: AsyncChatEvent) {
         val prep = prepared.remove(event)
+        // 그림자 뮤트·감옥 거리 채팅처럼 취소는 안 됐지만 남에게 가지 않는 글은 디스코드에도 보내지 않는다(core ChatVisibility — essentials moderation 이 끼운다).
+        if (ChatVisibility.isHidden(event.player.uniqueId)) return
         discord.gameToDiscord.relay(event.player, prep?.discordText ?: Texts.plain(event.message()), prep?.snapshots.orEmpty(), prep?.hovers.orEmpty())
-        if (prep != null) discord.alerts.fromGame(event.player, prep.mentionTargets)
+        if (prep != null && prep.mentionTargets.isNotEmpty()) {
+            // 멘션 알림은 이 줄을 실제로 받는 사람에게만 — essentials 가 HIGH 에서 viewers() 를 줄인다(무시·채팅 끄기·거리 채팅).
+            val viewers = event.viewers().mapNotNullTo(HashSet()) { (it as? Player)?.uniqueId }
+            discord.alerts.fromGame(event.player, prep.mentionTargets.filterTo(HashSet()) { it in viewers })
+        }
     }
 
     @EventHandler
@@ -244,7 +253,9 @@ class ChatListener(private val discord: Discord) : Listener {
         if (!mention.enabled || !text.contains(mention.prefix)) return emptyList()
         if (!player.hasPermission(Discord.MENTION_PLAYER)) return emptyList()
         val names = HashMap<String, UUID>()
+        // 보낸 사람이 볼 수 없는 투명인 사람은 멘션되지 않는다. 볼 수 있는 사람(관리자)이 부른 것도 강조는 보는 사람마다 가린다([Decorated.highlight]).
         for (online in Bukkit.getOnlinePlayers()) {
+            if (!Vanish.canSee(player, online)) continue
             names[online.name] = online.uniqueId
             names[TitleForgeNames.displayName(online.uniqueId, online.name)] = online.uniqueId
         }
@@ -280,7 +291,7 @@ class ChatListener(private val discord: Discord) : Listener {
             for (p in prep.viewerMode) {
                 msg = runCatching { replace(msg, p.pattern) { groups -> placeholder(p, groups, viewerPlayer) } }.getOrElse { warnOnce(p, it); msg }
             }
-            if (prep.mentions.isNotEmpty()) msg = highlight(msg, viewerPlayer, source)
+            if (prep.mentions.isNotEmpty()) msg = highlight(msg, viewer, source)
             var out = inner.render(source, sourceDisplayName, msg, viewer)
             if (name != null && name.nickname.isNotEmpty()) {
                 out = out.replaceText(
@@ -295,11 +306,15 @@ class ChatListener(private val discord: Discord) : Listener {
             return out
         }
 
-        private fun highlight(message: Component, viewer: Player?, source: Player): Component {
+        private fun highlight(message: Component, audience: Audience, source: Player): Component {
+            val viewer = audience as? Player
             val mention = discord.settings.mention
             val sender = TitleForgeNames.displayName(source.uniqueId, source.name)
             var out = message
             for (found in prep.mentions) {
+                // 보는 사람이 볼 수 없는 투명인 사람을 부른 것은 강조하지 않는다 — 강조는 접속 중인 이름에만 붙어 접속을 드러낸다.
+                // 투명이 아니면 권한을 묻지 않는다(canSee 가 먼저 isVanished 를 본다).
+                if (!found.everyone && found.targets.any { id -> Bukkit.getPlayer(id)?.let { !Vanish.canSee(audience as? CommandSender, it) } == true }) continue
                 val self = viewer != null && (found.everyone || viewer.uniqueId in found.targets)
                 val template = if (self) mention.highlightSelf else mention.highlightOthers
                 val hover = mention.hover.map { Texts.mini(it, "sender" to sender) }

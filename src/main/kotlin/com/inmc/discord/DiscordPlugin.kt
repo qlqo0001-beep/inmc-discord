@@ -4,6 +4,7 @@ import com.inmc.discord.chat.ChatListener
 import com.inmc.discord.command.DiscordCommand
 import com.inmc.discord.config.Migration
 import com.inmc.discord.render.Lang
+import kr.inmc.core.integration.Vanish
 import kr.inmc.core.listener.MenuListener
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
@@ -38,6 +39,8 @@ class DiscordPlugin : JavaPlugin() {
         server.pluginManager.registerEvents(discord.nicknames, this)
         server.pluginManager.registerEvents(discord.panel, this)
         Signals.register()
+        // 투명을 풀면 패널의 오늘 접속에 센다. 이름 목록(접속목록·주제·패널)은 쓸 때마다 core Vanish 를 보므로 따로 할 것이 없다.
+        Vanish.listen(VANISH_OWNER) { player, vanished -> discord.panel.onVanish(player, vanished) }
         discord.previews.load()
         DiscordCommand(discord, this).register()
         discord.alerts.register()
@@ -58,6 +61,7 @@ class DiscordPlugin : JavaPlugin() {
         if (!::discord.isInitialized) return
         // 람다가 이 플러그인의 클래스로더를 붙들고 있다.
         Signals.unregister()
+        Vanish.unregisterAll(VANISH_OWNER)
         discord.watchdog.stop()
         discord.alerts.unregister()
         discord.bot.stop()
@@ -105,5 +109,8 @@ class DiscordPlugin : JavaPlugin() {
     private companion object {
         val RESOURCES = listOf("config.yml", "messages.yml", "placeholders.yml", "panel.yml")
         val REPLACED = listOf("DiscordSRV", "InteractiveChat", "InteractiveChatDiscordSrvAddon")
+
+        /** core [Vanish.listen] 의 주인 이름 — 서버 전체에서 하나(같은 이름은 교체된다). */
+        const val VANISH_OWNER = "inmc-discord"
     }
 }
