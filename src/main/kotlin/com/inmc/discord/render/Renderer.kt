@@ -17,6 +17,8 @@ import com.inmc.discord.render.special.SpecialModels
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -104,9 +106,29 @@ class Renderer(private val discord: Discord) {
         return File(discord.plugin.dataFolder.parentFile, path).takeIf { it.isFile }
     }
 
+    /** 서버 팩 사본을 두는 곳 — [packCopy]. */
+    private val packCopies = File(discord.plugin.dataFolder, "cache/server-pack")
+
+    /**
+     * 서버 팩의 **사본**. 엔진은 사는 동안 zip 을 열어 두는데, 원본(`pack.zip`)을 열어 두면 윈도우에서 커스텀아이템이 새 팩으로 바꿔 끼우지 못한다 —
+     * 10-07 부터 리팩 빌드가 하나도 안 들어갔다(2026-10-10). 사본은 원본의 수정 시각마다 다른 이름이라 옛 엔진이 쥔 사본을 덮지 않는다.
+     * NIO 로 복사한다 — 윈도우에서 지우기 공유를 열어 두므로 복사하는 동안에도 원본을 바꿔 끼울 수 있다(`File.copyTo` 는 막는다).
+     */
+    private fun packCopy(source: File): File {
+        packCopies.mkdirs()
+        val copy = File(packCopies, "pack-${source.lastModified()}.zip")
+        if (!copy.isFile) {
+            val temp = File(packCopies, copy.name + ".tmp")
+            Files.copy(source.toPath(), temp.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            Files.move(temp.toPath(), copy.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
+        return copy
+    }
+
     private fun build() {
         val render = discord.settings.render
-        val pack = serverPack()
+        val source = serverPack()
+        val pack = source?.let(::packCopy)
         val client = AssetPack.ZipLayer(setup.clientJar)
         // 서버 팩의 overlay 는 클라이언트 판의 리소스팩 형식으로 고른다(26.2 = 88).
         val format = AssetPack.resourceFormat(client.bytes("version.json")) ?: DEFAULT_FORMAT
@@ -124,9 +146,11 @@ class Renderer(private val discord: Discord) {
         val lang = if (entries.isEmpty()) Lang.EMPTY else Lang(entries)
         val old = engine
         engine = Engine(assets, lang, skins)
-        packStamp = pack?.lastModified() ?: 0L
+        packStamp = source?.lastModified() ?: 0L
         discord.lang = lang
         old?.close()
+        // 옛 엔진이 쥐던 사본은 닫은 뒤에 지운다.
+        packCopies.listFiles()?.filter { it != pack }?.forEach { it.delete() }
         state = "준비됨 (${assets.layerNames().joinToString(" < ")})"
     }
 
