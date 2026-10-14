@@ -2,6 +2,11 @@
 
 ---
 
+## 미배포 — 투명을 켜고 끌 때의 가짜 접속·퇴장을 채널에(2026-10-15)
+
+- `relay/PlayerEvents.onFakeConnection`(MONITOR) — core `FakeConnectionEvent` 의 문구를 `player-events` 의 join/leave 형식으로 올린다. 진짜 접속·퇴장과 구별되지 않게.
+  쏘는 쪽이 퇴장은 투명 표식 전, 접속은 푼 뒤에 쏘므로 투명 거르기에 걸리지 않는다. 문구가 null(타이틀포지가 지움)이면 안 올린다.
+
 ## 미배포 — 그림 엔진이 커스텀아이템 `pack.zip` 을 쥐지 않는다(2026-10-10)
 
 - 그림 엔진이 서버 팩(`render.server-pack`)을 **사본**(`cache/server-pack/pack-<수정 시각>.zip`, NIO 복사)으로 연다. 원본을 엔진이 사는 동안 열어 두어

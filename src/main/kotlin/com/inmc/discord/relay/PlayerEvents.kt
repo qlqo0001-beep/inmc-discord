@@ -42,6 +42,17 @@ class PlayerEvents(private val discord: Discord) : Listener {
         send(event.player, discord.settings.playerEvents.leave, message)
     }
 
+    /**
+     * 투명을 켜고 끌 때의 가짜 접속·퇴장(core [kr.inmc.core.event.FakeConnectionEvent], 2026-10-15) — 진짜처럼 올린다. 퇴장은 표식을 걸기 전,
+     * 접속은 표식을 푼 뒤에 오므로 [send] 의 투명 거르기에 걸리지 않는다. 문구가 null(타이틀포지가 지움)이면 보내지 않는다.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    fun onFakeConnection(event: kr.inmc.core.event.FakeConnectionEvent) {
+        val message = event.message ?: return
+        val events = discord.settings.playerEvents
+        send(event.player, if (event.joining) events.join else events.leave, message)
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     fun onDeath(event: PlayerDeathEvent) {
         val message = event.deathMessage() ?: return
